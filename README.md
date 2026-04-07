@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/26539026/README.md)
 # 🏒 ECHL Player Development Model
 
 Propensity-based projections for college and major junior players transitioning to their first ECHL season. Built by Batt Analytics.
