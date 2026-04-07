@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECHL Forward Dev Model — Batt Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0b0d14;
+  --bg-card:   #111520;
+  --bg-row:    #0d1020;
+  --bg-rowalt: #111422;
+  --bg-hover:  #161b2c;
+  --border:    #1d2540;
+  --borderl:   #242d45;
+  --accent:    #00c48c;
+  --accentd:   rgba(0,196,140,0.12);
+  --text:      #d8e0f0;
+  --muted:     #5e6e8a;
+  --dim:       #8898a8;
+  --c1:  #f59e0b;
+  --c2:  #64748b;
+  --cb:  #3b82f6;
+  --cc:  #f97316;
+  --cf:  #ef4444;
+  --ce:  #00c48c;
+  --cs:  #f59e0b;
+  --cd:  #818cf8;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:13px; min-height:100vh; }
+
+/* ── HEADER ── */
+header { background:var(--bg-card); border-bottom:1px solid var(--border); padding:0 24px; }
+.hdr { max-width:1440px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:66px; }
+.brand { display:flex; align-items:center; gap:14px; }
+.brand-icon { font-size:30px; line-height:1; }
+.brand-name { font-family:'Barlow Condensed',sans-serif; font-size:23px; font-weight:800; color:var(--text); letter-spacing:.05em; text-transform:uppercase; line-height:1; }
+.brand-sub  { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:600; color:var(--accent); letter-spacing:.07em; text-transform:uppercase; margin-top:3px; }
+.season-info { text-align:right; }
+.season-badge { display:inline-block; background:var(--accentd); border:1px solid var(--accent); color:var(--accent); font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:14px; letter-spacing:.06em; padding:3px 10px; border-radius:3px; text-transform:uppercase; }
+.updated { color:var(--muted); font-size:11px; margin-top:4px; }
+
+/* ── STAT CARDS ── */
+.cards { max-width:1440px; margin:20px auto; padding:0 24px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.card { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:16px 20px; }
+.card-val { font-family:'Barlow Condensed',sans-serif; font-size:38px; font-weight:800; line-height:1; color:#fff; }
+.card-lbl { color:var(--muted); font-size:11px; letter-spacing:.08em; text-transform:uppercase; margin-top:5px; }
+.card.c-accent .card-val { color:var(--accent); }
+.card.c-gold   .card-val { color:var(--c1); }
+.card.c-purple .card-val { color:var(--cd); }
+
+/* ── MAIN ── */
+.main { max-width:1440px; margin:0 auto; padding:0 24px 52px; }
+
+/* ── FILTER BAR ── */
+.fbar { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:13px 18px; display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin-bottom:12px; }
+.fbar label { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
+.fg { display:flex; align-items:center; gap:8px; }
+.fdiv { width:1px; height:22px; background:var(--border); }
+.fbar input[type=text] { background:var(--bg); border:1px solid var(--borderl); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 10px; border-radius:4px; outline:none; width:200px; transition:border-color .15s; }
+.fbar input[type=text]::placeholder { color:var(--muted); }
+.fbar input[type=text]:focus { border-color:var(--accent); }
+.fbar select { background:var(--bg); border:1px solid var(--borderl); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 28px 6px 10px; border-radius:4px; outline:none; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235e6e8a' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; cursor:pointer; transition:border-color .15s; }
+.fbar select:focus { border-color:var(--accent); }
+.btn-reset { background:transparent; border:1px solid var(--borderl); color:var(--dim); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all .15s; }
+.btn-reset:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ── GP SLIDER ── */
+.gp-fg { display:flex; align-items:center; gap:8px; }
+.gp-slider { -webkit-appearance:none; appearance:none; width:120px; height:4px; background:var(--borderl); border-radius:2px; outline:none; cursor:pointer; transition:background .15s; }
+.gp-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); cursor:pointer; transition:transform .15s; }
+.gp-slider::-webkit-slider-thumb:hover { transform:scale(1.2); }
+.gp-slider::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--accent); border:none; cursor:pointer; }
+.gp-val { color:var(--accent); font-size:12px; font-weight:500; min-width:32px; }
+
+/* ── CONTROLS ROW ── */
+.ctrl { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:10px; }
+.toggle { display:flex; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:3px; gap:2px; }
+.toggle button { background:transparent; border:none; color:var(--muted); font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:.04em; padding:6px 18px; border-radius:4px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.toggle button.active { background:var(--accent); color:#000; }
+.toggle button:not(.active):hover { color:var(--text); }
+.cnt { color:var(--muted); font-size:12px; }
+.cnt span { color:var(--text); font-weight:500; }
+
+/* ── INFO STRIP ── */
+.info-strip { background:rgba(129,140,248,.07); border:1px solid rgba(129,140,248,.2); border-radius:6px; padding:10px 16px; margin-bottom:12px; color:#a0aec0; font-size:12px; line-height:1.6; display:none; }
+.info-strip strong { color:var(--cd); }
+.info-strip.show { display:block; }
+
+/* ── LEGEND ROW ── */
+.legends { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px; }
+.proj-legend { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.pleg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+.pleg-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.flag-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.flag-legend .fi { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+
+/* ── TABLE ── */
+.twrap { background:var(--bg-card); border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.tscroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; min-width:980px; }
+thead th { background:#0c1020; padding:10px 12px; text-align:left; color:var(--muted); font-size:11px; font-weight:400; letter-spacing:.08em; text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; transition:color .15s; }
+thead th:hover { color:var(--text); }
+thead th.sorted { color:var(--accent); }
+.si { display:inline-block; margin-left:4px; opacity:.35; font-size:10px; }
+thead th.sorted .si { opacity:1; }
+tbody tr { border-bottom:1px solid var(--border); transition:background .1s; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:nth-child(odd)  { background:var(--bg-row); }
+tbody tr:nth-child(even) { background:var(--bg-rowalt); }
+tbody tr:hover { background:var(--bg-hover); }
+td { padding:9px 12px; vertical-align:middle; }
+
+/* player cell */
+.pcell { display:flex; flex-direction:column; gap:3px; }
+.pname { font-weight:500; color:#e8f0ff; white-space:nowrap; }
+.pmeta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.ptag  { background:rgba(255,255,255,.06); color:var(--dim); font-size:10px; padding:1px 5px; border-radius:2px; }
+.flags { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+.flag  { font-size:10px; padding:1px 6px; border-radius:3px; font-weight:500; letter-spacing:.03em; cursor:default; white-space:nowrap; }
+.fe { background:rgba(0,196,140,.14); color:var(--ce); border:1px solid rgba(0,196,140,.3); }
+.fs { background:rgba(245,158,11,.14); color:var(--cs); border:1px solid rgba(245,158,11,.3); }
+.fd { background:rgba(129,140,248,.14); color:var(--cd); border:1px solid rgba(129,140,248,.3); }
+
+/* league badge */
+.lbadge { font-size:11px; font-weight:500; padding:2px 7px; border-radius:3px; white-space:nowrap; }
+.lg-ncaa    { background:rgba(59,130,246,.2);  color:#60a5fa; }
+.lg-ohl     { background:rgba(239,68,68,.2);   color:#f87171; }
+.lg-whl     { background:rgba(249,115,22,.2);  color:#fb923c; }
+.lg-qmjhl   { background:rgba(168,85,247,.2);  color:#c084fc; }
+.lg-usports { background:rgba(0,196,140,.2);   color:#34d399; }
+
+/* numeric */
+.num { font-variant-numeric:tabular-nums; text-align:right; }
+.nhle-v { font-weight:500; color:#c8d8f8; }
+
+/* projection badge */
+.pbadge { display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; white-space:nowrap; }
+.p-1st_liner           { background:rgba(245,158,11,.18); color:var(--c1); border:1px solid rgba(245,158,11,.3); }
+.p-2nd_liner           { background:rgba(100,116,139,.25); color:#94a3b8;  border:1px solid rgba(100,116,139,.4); }
+.p-bottom_six_two_way  { background:rgba(59,130,246,.18);  color:#60a5fa;  border:1px solid rgba(59,130,246,.3); }
+.p-checking            { background:rgba(249,115,22,.18);  color:var(--cc); border:1px solid rgba(249,115,22,.3); }
+.p-fringe              { background:rgba(239,68,68,.14);   color:#f87171;  border:1px solid rgba(239,68,68,.25); }
+.p-na                  { background:rgba(255,255,255,.05); color:var(--muted); border:1px solid var(--border); }
+
+/* D projection badges */
+.p-number_1    { background:rgba(245,158,11,.18); color:var(--c1); border:1px solid rgba(245,158,11,.3); }
+.p-top_pair    { background:rgba(100,116,139,.25); color:#94a3b8;  border:1px solid rgba(100,116,139,.4); }
+.p-middle_pair { background:rgba(59,130,246,.18);  color:#60a5fa;  border:1px solid rgba(59,130,246,.3); }
+.p-bottom_pair { background:rgba(249,115,22,.18);  color:var(--cc); border:1px solid rgba(249,115,22,.3); }
+
+/* prob bar */
+.pbar { display:flex; height:8px; border-radius:4px; overflow:hidden; width:120px; gap:1px; }
+.pseg { height:100%; border-radius:1px; }
+.prow { display:flex; flex-direction:column; gap:3px; }
+.plbl { font-size:10px; color:var(--muted); }
+
+/* pm value */
+.pm-pos { color:#4ade80; }
+.pm-neg { color:#f87171; }
+.pm-neu { color:var(--dim); }
+
+/* feeder history */
+.fhist { color:var(--muted); font-size:11px; white-space:nowrap; }
+
+/* empty state */
+.empty { padding:60px 24px; text-align:center; color:var(--muted); display:none; }
+.empty .ico { font-size:40px; margin-bottom:12px; }
+.empty p { font-size:14px; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--borderl); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:#2d3f5a; }
+
+/* ── PAGE NAV ── */
+nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
+.nav-inner { max-width:1440px; margin:0 auto; padding:0 24px; display:flex; gap:0; }
+.nav-tab { background:transparent; border:none; border-bottom:2px solid transparent; color:var(--muted); font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:12px 20px 10px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.nav-tab:hover { color:var(--text); }
+.nav-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* ── PAGE SECTIONS ── */
+.page { display:none; }
+.page.active { display:block; }
+
+/* ── GUIDE PAGE ── */
+.guide { max-width:960px; margin:0 auto; padding:36px 24px 64px; }
+.guide-hero { text-align:center; margin-bottom:48px; }
+.guide-hero h1 { font-family:'Barlow Condensed',sans-serif; font-size:36px; font-weight:800; color:var(--text); letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px; }
+.guide-hero p  { color:var(--dim); font-size:14px; line-height:1.7; max-width:560px; margin:0 auto; }
+
+.gsec { margin-bottom:40px; }
+.gsec-title { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; color:var(--accent); letter-spacing:.06em; text-transform:uppercase; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+
+/* step cards */
+.steps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.step { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; }
+.step-num { font-family:'Barlow Condensed',sans-serif; font-size:32px; font-weight:800; color:var(--borderl); line-height:1; margin-bottom:8px; }
+.step h3  { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
+.step p   { color:var(--dim); font-size:12px; line-height:1.65; }
+
+/* projection guide cards */
+.proj-grid { display:grid; grid-template-columns:repeat(1,1fr); gap:8px; }
+.proj-card { background:var(--bg-card); border:1px solid var(--border); border-left-width:3px; border-radius:6px; padding:14px 18px; display:grid; grid-template-columns:160px 1fr; gap:16px; align-items:start; }
+.proj-card.pc-1  { border-left-color:var(--c1); }
+.proj-card.pc-2  { border-left-color:#475569; }
+.proj-card.pc-b  { border-left-color:var(--cb); }
+.proj-card.pc-c  { border-left-color:var(--cc); }
+.proj-card.pc-f  { border-left-color:var(--cf); }
+.proj-label { display:flex; flex-direction:column; gap:5px; }
+.proj-badge-lg { font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.pc-1 .proj-badge-lg { color:var(--c1); }
+.pc-2 .proj-badge-lg { color:#94a3b8; }
+.pc-b .proj-badge-lg { color:#60a5fa; }
+.pc-c .proj-badge-lg { color:var(--cc); }
+.pc-f .proj-badge-lg { color:#f87171; }
+.proj-thresh { font-size:11px; color:var(--muted); }
+.proj-desc { color:var(--dim); font-size:12px; line-height:1.65; }
+.proj-eg { margin-top:6px; font-size:11px; color:var(--muted); font-style:italic; }
+
+/* flag guide */
+.flag-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.flag-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:18px; }
+.flag-card .flag { font-size:12px; padding:3px 8px; margin-bottom:10px; display:inline-block; }
+.flag-card h3 { font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; }
+.flag-card p  { color:var(--dim); font-size:12px; line-height:1.65; }
+.flag-card .eg { margin-top:10px; background:var(--bg); border:1px solid var(--borderl); border-radius:4px; padding:8px 10px; font-size:11px; color:var(--muted); line-height:1.5; }
+
+/* model compare */
+.model-compare { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.model-card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:20px; }
+.model-card h3 { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.model-card .mtag { display:inline-block; font-size:10px; font-weight:600; padding:2px 7px; border-radius:3px; margin-bottom:10px; }
+.mtag-ppg { background:rgba(0,196,140,.15); color:var(--accent); }
+.mtag-pm  { background:rgba(129,140,248,.15); color:var(--cd); }
+.model-card p   { color:var(--dim); font-size:12px; line-height:1.65; }
+.model-card ul  { margin:10px 0 0 14px; color:var(--dim); font-size:12px; line-height:1.8; }
+.model-card li  { list-style:disc; }
+.model-diff-note { margin-top:12px; background:rgba(129,140,248,.07); border:1px solid rgba(129,140,248,.2); border-radius:6px; padding:10px 14px; font-size:12px; color:#a0aec0; line-height:1.6; }
+.model-diff-note strong { color:var(--cd); }
+
+/* nhle explainer */
+.nhle-box { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:24px; }
+.nhle-box p { color:var(--dim); font-size:13px; line-height:1.75; margin-bottom:14px; }
+.nhle-box p:last-child { margin-bottom:0; }
+.nhle-eg { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:16px 0; }
+.nhle-eg-item { background:var(--bg); border:1px solid var(--borderl); border-radius:6px; padding:12px 14px; text-align:center; }
+.nhle-eg-item .val { font-family:'Barlow Condensed',sans-serif; font-size:26px; font-weight:800; color:#c8d8f8; line-height:1; }
+.nhle-eg-item .lbl { font-size:11px; color:var(--muted); margin-top:4px; }
+.nhle-eg-item .arr { font-size:18px; color:var(--borderl); margin:6px 0; }
+.nhle-eg-item .nhle { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; color:var(--accent); }
+
+/* tips */
+.tips { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.tip  { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:18px; display:flex; gap:12px; align-items:flex-start; }
+.tip-ico { font-size:22px; line-height:1; flex-shrink:0; margin-top:1px; }
+.tip-body h4 { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+.tip-body p  { color:var(--dim); font-size:12px; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────────────────────────────────── -->
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <div class="brand-icon">🏒</div>
+      <div>
+        <div class="brand-name">ECHL Forward Development Model</div>
+        <div class="brand-sub">Batt Analytics</div>
+      </div>
+    </div>
+    <div class="season-info">
+      <div class="season-badge">2025–2026 Season</div>
+      <div class="updated">Updated March 19, 2026</div>
+    </div>
+  </div>
+</header>
+
+<!-- ── NAV ──────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <button class="nav-tab active" onclick="showPage('players')">📊 Projections</button>
+    <button class="nav-tab" onclick="showPage('guide')">📖 How to Use This Tool</button>
+  </div>
+</nav>
+<!-- ── POSITION TOGGLE ────────────────────────────────────────────────────── -->
+<div id="pos-bar" style="background:var(--bg-card);border-bottom:1px solid var(--border);padding:8px 24px;display:none">
+  <div style="max-width:1440px;margin:0 auto;display:flex;align-items:center;gap:10px">
+    <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em">Position</span>
+    <div class="toggle" style="padding:2px;gap:2px">
+      <button class="active" id="btn-fwd" style="font-size:13px;padding:5px 16px" onclick="setPos('F')">⛸ Forwards</button>
+      <button id="btn-dman" style="font-size:13px;padding:5px 16px" onclick="setPos('D')">🛡 Defensemen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── STAT CARDS ─────────────────────────────────────────────────────── -->
+<div class="cards" id="cards"></div>
+
+<!-- ── PLAYERS PAGE ────────────────────────────────────────────────────── -->
+<div id="page-players" class="page active">
+
+<!-- ── MAIN ───────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- filters -->
+  <div class="fbar">
+    <div class="fg">
+      <label>🔍</label>
+      <input type="text" id="s-search" placeholder="Search player…" oninput="render()">
+    </div>
+    <div class="fdiv"></div>
+    <div class="fg">
+      <label>League</label>
+      <select id="s-league" onchange="buildTeams(); render()">
+        <option value="">All Leagues</option>
+        <option value="ncaa">NCAA</option>
+        <option value="ohl">OHL</option>
+        <option value="whl">WHL</option>
+        <option value="qmjhl">QMJHL</option>
+        <option value="usports">USports</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Team</label>
+      <select id="s-team" onchange="render()">
+        <option value="">All Teams</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Projection</label>
+      <select id="s-proj" onchange="render()">
+        <option value="">All Projections</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Flags</label>
+      <select id="s-flags" onchange="render()">
+        <option value="">All Players</option>
+        <option value="eligible">✅ ECHL Eligible Only</option>
+        <option value="sample">⚠️ Sample Flag</option>
+        <option value="diff">⚡ Model Disagrees</option>
+      </select>
+    </div>
+    <div class="fdiv"></div>
+    <div class="gp-fg">
+      <label>Min GP</label>
+      <input type="range" class="gp-slider" id="s-gp" min="0" max="68" value="0" step="1" oninput="document.getElementById('gp-val').textContent=this.value; render()">
+      <span class="gp-val" id="gp-val">0</span>
+    </div>
+    <div class="fdiv"></div>
+    <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
+  </div>
+
+  <!-- model toggle + count -->
+  <div class="ctrl">
+    <div class="toggle">
+      <button class="active" id="btn-ppg" onclick="setModel('ppg')">📊 PPG Model</button>
+      <button id="btn-pm" onclick="setModel('pm')">🔀 PPG + Per-Game ± Model</button>
+    </div>
+    <div class="cnt">Showing <span id="cnt">—</span> players</div>
+  </div>
+
+  <!-- PM info strip -->
+  <div class="info-strip" id="pm-strip">
+    <strong>PPG + Per-Game ± Model active.</strong>&nbsp; This version adjusts projections based on a player's on-ice impact <em>rate</em> (±/game) from their final feeder season — removing volume distortion across different league schedule lengths. A player at −0.15/gm or below is flagged negative; +0.15/gm or above is positive.&nbsp; <strong>⚡ Model Disagrees</strong> means this model gives a different projection than the PPG-only model — worth a closer look before making a decision.
+  </div>
+
+  <!-- legend -->
+  <div class="legends">
+    <div class="proj-legend" id="proj-legend">
+      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>1st Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>2nd Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Bottom 6 / Two-Way</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Checking</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>
+    </div>
+    <div class="flag-legend">
+      <div class="fi"><span class="flag fe">✓ ECHL</span> Final eligible season</div>
+      <div class="fi"><span class="flag fs">⚠ Sample</span> Low-GP projection</div>
+      <div class="fi"><span class="flag fd">⚡ Diff</span> Models disagree</div>
+    </div>
+  </div>
+
+  <!-- table -->
+  <div class="twrap">
+    <div class="tscroll">
+      <table>
+        <thead>
+          <tr>
+            <th id="th-player"  onclick="sortBy('player')">Player <span class="si">↕</span></th>
+            <th id="th-league"  onclick="sortBy('league')">League <span class="si">↕</span></th>
+            <th id="th-gp"      onclick="sortBy('gp')" class="num">GP <span class="si">↕</span></th>
+            <th id="th-ppg"     onclick="sortBy('ppg')" class="num">PPG <span class="si">↕</span></th>
+            <th id="th-nhle"    onclick="sortBy('nhle')" class="sorted num">NHLe PPG <span class="si">↓</span></th>
+            <th id="th-pm_pg"   onclick="sortBy('pm_pg')" class="num" style="display:none">±/Gm <span class="si">↕</span></th>
+            <th>Projection</th>
+            <th>Probability</th>
+            <th id="th-szn"     onclick="sortBy('szn')">Career <span class="si">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty">
+      <div class="ico">🔍</div>
+      <p>No players match your filters.</p>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+</div><!-- /page-players -->
+
+<!-- ── GUIDE PAGE ─────────────────────────────────────────────────────── -->
+<div id="page-guide" class="page">
+<div class="guide">
+
+  <!-- WHAT DOES THIS TOOL DO -->
+  <div class="gsec">
+    <div class="gsec-title">🎯 What Does This Tool Do?</div>
+    <div class="nhle-box">
+      <p>This tool looks at every forward currently playing in college hockey (NCAA, USports) or major junior (OHL, WHL, QMJHL) and asks: <strong style="color:var(--text)">if this player turned pro today and played in the ECHL next season, what kind of player would they likely be?</strong></p>
+      <p>It answers that question by comparing today's player to hundreds of players who made the same journey in recent seasons — college or junior → first year in the ECHL — and seeing how those historical players turned out based on their pre-pro scoring rate.</p>
+      <p>The result is a <strong style="color:var(--text)">probability distribution</strong>, not a guarantee. A player projected at 57% 1st liner means that, historically, players at his scoring level became clear contributors about 6 times out of 10. It's a starting point for the conversation, not the final answer.</p>
+    </div>
+  </div>
+
+  <!-- HOW THE MODEL WORKS -->
+  <div class="gsec">
+    <div class="gsec-title">⚙️ How Does the Model Work?</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Score Translation</h3>
+        <p>A player's points-per-game in their feeder league gets converted to an <strong style="color:var(--text)">NHL-equivalent rate (NHLe PPG)</strong>. This levels the playing field — a 1.0 ppg player in the OHL and a 1.0 ppg player in USports are not the same, because those leagues have different competitive levels.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Historical Matching</h3>
+        <p>That NHLe rate is matched against a database of 400+ players who went from the same feeder leagues to the ECHL between 2020 and 2025. We look at how those players actually performed in their first ECHL season.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Probability Output</h3>
+        <p>Based on that historical group, the model outputs a probability for each of the five lineup-fit outcomes. The highest probability becomes the main projection label you see in the table.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- NHLE EXPLAINED -->
+  <div class="gsec">
+    <div class="gsec-title">📐 What Is NHLe PPG?</div>
+    <div class="nhle-box">
+      <p>NHLe stands for <strong style="color:var(--text)">NHL-equivalent points per game</strong>. It translates a player's raw scoring rate into a standardised number that accounts for how competitive their league is.</p>
+      <div class="nhle-eg">
+        <div class="nhle-eg-item">
+          <div class="val">1.00</div>
+          <div class="lbl">PPG in OHL</div>
+          <div class="arr">↓</div>
+          <div class="nhle">0.14</div>
+          <div class="lbl">NHLe PPG</div>
+        </div>
+        <div class="nhle-eg-item">
+          <div class="val">1.00</div>
+          <div class="lbl">PPG in NCAA</div>
+          <div class="arr">↓</div>
+          <div class="nhle">0.19</div>
+          <div class="lbl">NHLe PPG</div>
+        </div>
+        <div class="nhle-eg-item">
+          <div class="val">1.00</div>
+          <div class="lbl">PPG in USports</div>
+          <div class="arr">↓</div>
+          <div class="nhle">0.13</div>
+          <div class="lbl">NHLe PPG</div>
+        </div>
+      </div>
+      <p>The same raw ppg means something different in each league. NHLe normalises for that. <strong style="color:var(--text)">Higher NHLe = stronger historical track record of ECHL success.</strong> Think of it as the single most important number in this table.</p>
+    </div>
+  </div>
+
+  <!-- PROJECTION LABELS -->
+  <div class="gsec">
+    <div class="gsec-title">🏒 What Do the Projection Labels Mean?</div>
+    <div class="proj-grid">
+      <div class="proj-card pc-1">
+        <div class="proj-label">
+          <span class="proj-badge-lg">⭐ 1st Liner</span>
+          <span class="proj-thresh">ECHL PPG ≥ 0.74</span>
+        </div>
+        <div>
+          <div class="proj-desc">Top offensive contributor. Likely a point-per-game threat in the ECHL — the kind of player who drives a line and appears in power play time. These players often move up to AHL stints or return to the ECHL as veterans anchoring a top unit.</div>
+          <div class="proj-eg">Example: A player averaging 0.85 ppg and 35+ points over a full ECHL season.</div>
+        </div>
+      </div>
+      <div class="proj-card pc-2">
+        <div class="proj-label">
+          <span class="proj-badge-lg">2nd Liner</span>
+          <span class="proj-thresh">ECHL PPG 0.52–0.74</span>
+        </div>
+        <div>
+          <div class="proj-desc">Solid secondary contributor. Plays meaningful minutes, contributes offensively but not at the top line level. Reliable roster player who will hold a spot and give you production. Good depth signing with upside.</div>
+          <div class="proj-eg">Example: 20–30 points over a full season, steady two-way presence on the second unit.</div>
+        </div>
+      </div>
+      <div class="proj-card pc-b">
+        <div class="proj-label">
+          <span class="proj-badge-lg">🔵 Bottom 6 / Two-Way</span>
+          <span class="proj-thresh">ECHL PPG ≥ 0.32, +/- ≥ 0</span>
+        </div>
+        <div>
+          <div class="proj-desc">Limited offence but brings value in other areas — defensive detail, physicality, face-offs, penalty kill. Won't produce many points but won't hurt you on the ice either. Positive or neutral on-ice impact.</div>
+          <div class="proj-eg">Example: 10–18 points over a full season, strong defensive metrics, valued in a third-line role.</div>
+        </div>
+      </div>
+      <div class="proj-card pc-c">
+        <div class="proj-label">
+          <span class="proj-badge-lg">🟠 Checking</span>
+          <span class="proj-thresh">ECHL PPG &lt; 0.32, +/- ≥ -2</span>
+        </div>
+        <div>
+          <div class="proj-desc">Energy/depth player. Limited offensive output and marginal on-ice impact, but not a liability. Fills a fourth-line role, brings compete and physicality. Roster-worthy, but not someone you build a line around.</div>
+          <div class="proj-eg">Example: Under 15 points in a season, valued for PK time, face-offs, or physical play.</div>
+        </div>
+      </div>
+      <div class="proj-card pc-f">
+        <div class="proj-label">
+          <span class="proj-badge-lg">🔴 Fringe</span>
+          <span class="proj-thresh">Everything else</span>
+        </div>
+        <div>
+          <div class="proj-desc">Unlikely to hold a regular ECHL roster spot in year one. May need more development time, could be a practice player or depth callup, or may transition out of pro hockey. Not a signing target unless there are other factors at play.</div>
+          <div class="proj-eg">Example: Struggled to score at the college level and posted negative on-ice impact numbers.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLAGS -->
+  <div class="gsec">
+    <div class="gsec-title">🚩 What Do the Flags Mean?</div>
+    <div class="flag-grid">
+      <div class="flag-card">
+        <span class="flag fe">✓ ECHL Eligible</span>
+        <h3>Turning Pro This Offseason</h3>
+        <p>This player appears to be in their final eligible season in their feeder league — they're either a college senior (4th year NCAA or 3rd+ year USports) or an overage-eligible junior (3rd+ year CHL). In plain terms: <strong style="color:var(--text)">this is a player you could actually sign this coming offseason.</strong></p>
+        <div class="eg">💡 Use the "ECHL Eligible Only" filter to see only players who are realistically available next season.</div>
+      </div>
+      <div class="flag-card">
+        <span class="flag fs">⚠ Sample Flag</span>
+        <h3>Small Sample — Use With Caution</h3>
+        <p>This player has played fewer games than our reliability threshold for their league (roughly 25% of a full season). Their NHLe rate is based on limited data and could be misleading. A player on a hot or cold streak over 10–12 games looks very different than their true level.</p>
+        <div class="eg">💡 These players are included for awareness, but treat the projection as a rough estimate. More games will sharpen the picture.</div>
+      </div>
+      <div class="flag-card">
+        <span class="flag fd">⚡ Model Disagrees</span>
+        <h3>Two Models Give Different Answers</h3>
+        <p>The PPG-only model and the PPG + Per-Game ± model give this player different projection labels. This usually means their scoring looks better (or worse) than their on-ice impact numbers suggest. Worth a closer look before making a decision.</p>
+        <div class="eg">💡 Only visible in the PPG + Per-Game ± tab. A player projected "2nd Liner" by PPG but "Checking" by the ± model may score, but has struggled defensively.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TWO MODELS -->
+  <div class="gsec">
+    <div class="gsec-title">🔀 Two Models — What's the Difference?</div>
+    <div class="model-compare">
+      <div class="model-card">
+        <h3>📊 PPG Model</h3>
+        <span class="mtag mtag-ppg">Default View</span>
+        <p>Uses only NHLe PPG — the scoring rate translated from the player's feeder league. This is the primary model and the most reliable because it's built on the most data.</p>
+        <ul>
+          <li>Best starting point for any evaluation</li>
+          <li>Clean and straightforward to interpret</li>
+          <li>Use this when you want a quick read on a player</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h3>🔀 PPG + Per-Game ± Model</h3>
+        <span class="mtag mtag-pm">Secondary View</span>
+        <p>Adds the player's on-ice plus/minus rate (per game played, not raw total) as a second signal. This captures whether a player is helping or hurting their team beyond what the scoresheet shows.</p>
+        <ul>
+          <li>More nuanced — useful for close calls</li>
+          <li>The ± rate is normalised per game to be fair across different schedule lengths</li>
+          <li>Watch for the <span class="flag fd" style="font-size:10px;padding:1px 5px;">⚡ Diff</span> flag — that's where this model adds real value</li>
+        </ul>
+      </div>
+    </div>
+    <div class="model-diff-note">
+      <strong>When the models disagree</strong> — that's the most interesting signal in the tool. A high scorer with a very negative ±/gm might look like a 2nd liner by PPG but drop to Checking in the ± model. That could mean they're on a terrible team, or it could mean they have real defensive issues. Either way, it's worth digging into before signing.
+    </div>
+  </div>
+
+  <!-- PRACTICAL TIPS -->
+  <div class="gsec">
+    <div class="gsec-title">💡 Practical Tips</div>
+    <div class="tips">
+      <div class="tip">
+        <div class="tip-ico">🎯</div>
+        <div class="tip-body">
+          <h4>Start With ECHL Eligible Filter</h4>
+          <p>Toggle "ECHL Eligible Only" in the Flags dropdown to instantly narrow to players who could actually be signed this offseason. This removes underclassmen and keeps the list actionable.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-ico">📊</div>
+        <div class="tip-body">
+          <h4>Sort by NHLe PPG First</h4>
+          <p>Click the NHLe PPG column header to sort from highest to lowest. This is the single best ranking of how likely a player is to contribute in the ECHL. The top of that list is your primary target pool.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-ico">⚠️</div>
+        <div class="tip-body">
+          <h4>Be Careful With Sample Flags Mid-Season</h4>
+          <p>Early in the season many players have only played 10–15 games. Their rates are unstable. Set the GP slider to 20+ if you want a more reliable read. Come back in February for a fuller picture.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-ico">🔀</div>
+        <div class="tip-body">
+          <h4>Use the ± Model as a Tiebreaker</h4>
+          <p>If two players have similar NHLe PPG, flip to the PPG + ± tab. The one who also has a positive on-ice impact rate is the safer bet. A ⚡ Diff flag between two otherwise comparable players is a meaningful differentiator.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-ico">🔴</div>
+        <div class="tip-body">
+          <h4>Fringe Doesn't Mean Never</h4>
+          <p>A Fringe projection means the historical base rate for players at that scoring level making an ECHL impact is low — not zero. Late-blooming players, physical-game contributors, and goalie interference specialists sometimes beat the model. Use it as context, not a veto.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-ico">📋</div>
+        <div class="tip-body">
+          <h4>This Is One Input, Not the Decision</h4>
+          <p>The model doesn't know about skating, compete level, injury history, character, or how a player fits your specific system. It's a data-informed starting point. Your scouts and staff always have the final word.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /guide -->
+</div><!-- /page-guide -->
+
+<script>
+// ── PLAYER DATA ────────────────────────────────────────────────────────────
+// prob arrays: F = [1st_liner%, 2nd_liner%, bot_six_two_way%, checking%, fringe%]
+//              D = [bottom_pair%, fringe%, middle_pair%, number_1%, top_pair%]
+
+const P = [
+  // ── NCAA (eligible = 4+ NCAA seasons) ──────────────────────────────────
+  {player:"Cruz Lucius",       pos:"RW",team:"Arizona State Univ.",   league:"ncaa",gp:22,ppg:1.45,pm:8,  nhle:0.28,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.36,
+   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
+  {player:"Bennett Schimek",   pos:"F", team:"Arizona State Univ.",   league:"ncaa",gp:22,ppg:1.41,pm:8,  nhle:0.27,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.36,
+   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
+  {player:"Ryan Chesley",      pos:"C", team:"Univ. of Michigan",     league:"ncaa",gp:20,ppg:0.80,pm:5,  nhle:0.16,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.25,
+   ppg_proj:"1st_liner",       ppg_p:[45.7,20.0,8.6,0,25.7],  pm_proj:"1st_liner",       pm_p:[68.8,12.5,0,0,18.8]},
+  {player:"Trevor Connelly",   pos:"LW",team:"Providence College",    league:"ncaa",gp:21,ppg:0.71,pm:3,  nhle:0.14,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.14,
+   ppg_proj:"2nd_liner",       ppg_p:[27.7,36.2,8.5,4.3,23.4],pm_proj:"2nd_liner",       pm_p:[34.4,37.5,0,0,28.1]},
+  {player:"Jake Dunlap",       pos:"C", team:"Univ. of Denver",       league:"ncaa",gp:22,ppg:0.59,pm:-2, nhle:0.11,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.09,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[11.1,44.4,11.1,11.1,22.2]},
+  {player:"Cole Fonstad",      pos:"LW",team:"Univ. of North Dakota",  league:"ncaa",gp:22,ppg:0.50,pm:1,  nhle:0.10,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.05,
+   ppg_proj:"2nd_liner",       ppg_p:[11.1,37.0,3.7,14.8,33.3],pm_proj:"2nd_liner",      pm_p:[20.0,40.0,20.0,0,20.0]},
+  {player:"Dillon Hamaliuk",   pos:"LW",team:"St. Cloud State Univ.", league:"ncaa",gp:20,ppg:0.45,pm:-3, nhle:0.09,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.15,
+   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"fringe",         pm_p:[8.3,25.0,8.3,8.3,50.0]},
+  {player:"Tristan Mullin",    pos:"RW",team:"Merrimack College",     league:"ncaa",gp:20,ppg:0.35,pm:-7, nhle:0.07,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.35,
+   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
+  {player:"Andrew Strathmann", pos:"C", team:"Army West Point",       league:"ncaa",gp:18,ppg:0.22,pm:-4, nhle:0.04,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.22,
+   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[13.3,13.3,0,13.3,60.0]},
+  {player:"Max Plante",        pos:"C", team:"Univ. of MN-Duluth",   league:"ncaa",gp:20,ppg:1.50,pm:16, nhle:0.29,szn:2,feeder:"ncaa: 2",           eligible:false,sample:false,pm_pg:0.80,
+   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
+  {player:"Marcus Sylvegard",  pos:"RW",team:"Boston College",        league:"ncaa",gp:20,ppg:0.55,pm:-8, nhle:0.11,szn:3,feeder:"ncaa: 3",           eligible:false,sample:false,pm_pg:-0.40,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"checking",        pm_p:[21.1,26.3,5.3,5.3,42.1]},
+  {player:"Nate Danielson",    pos:"C", team:"Western Michigan Univ.",league:"ncaa",gp:12,ppg:0.25,pm:0,  nhle:0.05,szn:4,feeder:"ncaa: 4",           eligible:true, sample:true, pm_pg:0.00,
+   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[9.1,18.2,9.1,13.6,50.0]},
+  {player:"Jett Luchanko",     pos:"C", team:"Guelph Storm",          league:"ohl", gp:17,ppg:1.47,pm:8,  nhle:0.21,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.47,
+   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
+  {player:"James Malatesta",   pos:"LW",team:"Hamilton Bulldogs",     league:"ohl", gp:40,ppg:1.10,pm:12, nhle:0.16,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.30,
+   ppg_proj:"1st_liner",       ppg_p:[45.7,20.0,8.6,0,25.7],  pm_proj:"1st_liner",       pm_p:[68.8,12.5,0,0,18.8]},
+  {player:"Calum Ritchie",     pos:"C", team:"Oshawa Generals",       league:"ohl", gp:38,ppg:0.97,pm:8,  nhle:0.14,szn:3,feeder:"ohl: 3",            eligible:true, sample:false,pm_pg:0.21,
+   ppg_proj:"2nd_liner",       ppg_p:[27.7,36.2,8.5,4.3,23.4],pm_proj:"2nd_liner",       pm_p:[34.4,37.5,0,0,28.1]},
+  {player:"Alex Pharand",      pos:"C", team:"Sudbury Wolves",        league:"ohl", gp:42,ppg:0.76,pm:-6, nhle:0.11,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:-0.14,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[11.1,44.4,11.1,11.1,22.2]},
+  {player:"Luca Pinelli",      pos:"C", team:"Ottawa 67's",           league:"ohl", gp:38,ppg:0.68,pm:4,  nhle:0.10,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.11,
+   ppg_proj:"2nd_liner",       ppg_p:[11.1,37.0,3.7,14.8,33.3],pm_proj:"2nd_liner",      pm_p:[20.0,40.0,20.0,0,20.0]},
+  {player:"Danny Zhilkin",     pos:"C", team:"Guelph Storm",          league:"ohl", gp:42,ppg:0.50,pm:-11,nhle:0.07,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:-0.26,
+   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
+  {player:"Braeden Kressler",  pos:"C", team:"Windsor Spitfires",     league:"ohl", gp:24,ppg:0.38,pm:-14,nhle:0.05,szn:3,feeder:"ohl: 3",            eligible:true, sample:false,pm_pg:-0.58,
+   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[13.3,13.3,0,13.3,60.0]},
+  {player:"Easton Cowan",      pos:"C", team:"London Knights",        league:"ohl", gp:40,ppg:0.58,pm:3,  nhle:0.08,szn:2,feeder:"ohl: 2",            eligible:false,sample:false,pm_pg:0.08,
+   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"bottom_six_two_way",pm_p:[23.1,7.7,23.1,15.4,30.8]},
+  {player:"Tanner Molendyk",   pos:"C", team:"Saskatoon Blades",      league:"whl", gp:44,ppg:0.86,pm:18, nhle:0.12,szn:4,feeder:"whl: 4",            eligible:true, sample:false,pm_pg:0.41,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
+  {player:"Gracyn Sawchyn",    pos:"LW",team:"Seattle Thunderbirds",  league:"whl", gp:40,ppg:0.78,pm:6,  nhle:0.11,szn:3,feeder:"whl: 3",            eligible:true, sample:false,pm_pg:0.15,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
+  {player:"Carter Streek",     pos:"LW",team:"Kelowna Rockets",       league:"whl", gp:38,ppg:0.63,pm:-3, nhle:0.09,szn:4,feeder:"whl: 4",            eligible:true, sample:false,pm_pg:-0.08,
+   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"fringe",         pm_p:[8.3,25.0,8.3,8.3,50.0]},
+  {player:"Cam Squires",       pos:"RW",team:"Cape Breton Eagles",    league:"qmjhl",gp:42,ppg:0.95,pm:11, nhle:0.11,szn:4,feeder:"qmjhl: 4",          eligible:true, sample:false,pm_pg:0.26,
+   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
+  {player:"Felix Lacroix",     pos:"C", team:"Sherbrooke Phoenix",    league:"qmjhl",gp:40,ppg:0.55,pm:-7, nhle:0.06,szn:4,feeder:"qmjhl: 4",          eligible:true, sample:false,pm_pg:-0.18,
+   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
+  {player:"Stephen Anderson",  pos:"C", team:"Alberta Golden Bears",  league:"usports",gp:22,ppg:1.05,pm:12,nhle:0.13,szn:3,feeder:"usports: 3",      eligible:true, sample:false,pm_pg:0.55,
+   ppg_proj:"2nd_liner",       ppg_p:[43.8,25.0,3.1,0,28.1],  pm_proj:"1st_liner",       pm_p:[58.8,29.4,0,0,11.8]},
+  {player:"Carson Stadnyk",    pos:"LW",team:"MacEwan Griffins",      league:"usports",gp:24,ppg:0.75,pm:15,nhle:0.09,szn:4,feeder:"usports: 4",      eligible:true, sample:false,pm_pg:0.63,
+   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"1st_liner",      pm_p:[35.7,28.6,14.3,7.1,14.3]},
+];
+
+// ── DEFENSEMAN DATA ─────────────────────────────────────────────────────────
+// prob arrays: [bottom_pair%, fringe%, middle_pair%, number_1%, top_pair%]
+// Calibrated from actual propensity_lookup_dman.pkl
+
+const D = [
+  {player:"Eric Pohlkamp",   pos:"D",team:"Univ. of Denver",          league:"ncaa",gp:23,ppg:1.04,pm:12, nhle:0.20,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:0.52,
+   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Ty Hanson",       pos:"D",team:"Univ. of MN-Duluth",       league:"ncaa",gp:22,ppg:1.09,pm:17, nhle:0.21,szn:2,feeder:"ncaa: 2",        eligible:false,sample:false,pm_pg:0.77,
+   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Tyler Dunbar",    pos:"D",team:"Union College",             league:"ncaa",gp:21,ppg:1.10,pm:17, nhle:0.21,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:0.81,
+   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Cole Hutson",     pos:"D",team:"Boston Univ.",              league:"ncaa",gp:19,ppg:1.05,pm:8,  nhle:0.20,szn:2,feeder:"ncaa: 2",        eligible:false,sample:false,pm_pg:0.42,
+   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Chris Hedden",    pos:"D",team:"Air Force Academy",         league:"ncaa",gp:22,ppg:0.95,pm:3,  nhle:0.18,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.14,
+   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"middle_pair",pm_p:[0,0,50.0,0,50.0]},
+  {player:"Jack Devine",     pos:"D",team:"Northeastern Univ.",        league:"ncaa",gp:20,ppg:0.85,pm:9,  nhle:0.16,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.45,
+   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"top_pair",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Matt Savoie",     pos:"D",team:"Univ. of North Dakota",     league:"ncaa",gp:21,ppg:0.76,pm:4,  nhle:0.15,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.19,
+   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"top_pair",  pm_p:[4.8,0,19.0,28.6,47.6]},
+  {player:"Marcus Glyba",    pos:"D",team:"Michigan Tech",             league:"ncaa",gp:20,ppg:0.55,pm:2,  nhle:0.11,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.10,
+   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"middle_pair",pm_p:[21.4,7.1,35.7,28.6,7.1]},
+  {player:"Ryan O'Connell",  pos:"D",team:"Quinnipiac Univ.",          league:"ncaa",gp:22,ppg:0.45,pm:-4, nhle:0.09,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:-0.18,
+   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"bottom_pair",pm_p:[75.0,0,0,25.0,0]},
+  {player:"Tanner Howe",     pos:"D",team:"Regina Pats",               league:"whl", gp:42,ppg:0.69,pm:11, nhle:0.10,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:0.26,
+   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"top_pair",  pm_p:[23.8,9.5,23.8,9.5,33.3]},
+  {player:"Ethan Gauthier",  pos:"D",team:"Sherbrooke Phoenix",        league:"qmjhl",gp:38,ppg:0.55,pm:5,  nhle:0.06,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:0.13,
+   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"bottom_pair",pm_p:[50.0,12.5,12.5,0,25.0]},
+  {player:"Alex Peck",       pos:"D",team:"Lethbridge Hurricanes",     league:"whl", gp:40,ppg:0.43,pm:-8, nhle:0.06,szn:4,feeder:"whl: 4",         eligible:true, sample:false,pm_pg:-0.20,
+   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"middle_pair",pm_p:[20.0,20.0,60.0,0,0]},
+  {player:"Mathieu Gagnon",  pos:"D",team:"Val-d'Or Foreurs",          league:"qmjhl",gp:36,ppg:0.39,pm:3,  nhle:0.04,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:0.08,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
+  {player:"Carter Lowe",     pos:"D",team:"Saskatoon Blades",          league:"whl", gp:38,ppg:0.32,pm:-6, nhle:0.05,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:-0.16,
+   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"middle_pair",pm_p:[20.0,20.0,60.0,0,0]},
+  {player:"Noah Delmas",     pos:"D",team:"St. Francis Xavier Univ.",  league:"usports",gp:20,ppg:0.30,pm:2,nhle:0.04,szn:3,feeder:"usports: 3",   eligible:true, sample:false,pm_pg:0.10,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
+  {player:"Tyler Brennan",   pos:"D",team:"Saginaw Spirit",            league:"ohl", gp:24,ppg:0.25,pm:-12,nhle:0.04,szn:3,feeder:"ohl: 3",         eligible:true, sample:false,pm_pg:-0.50,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[55.6,5.6,33.3,0,5.6]},
+  {player:"Jake Chiasson",   pos:"D",team:"Brandon Wheat Kings",       league:"whl", gp:36,ppg:0.22,pm:-2, nhle:0.03,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:-0.06,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
+  {player:"Ryan Mulholland", pos:"D",team:"Wilfrid Laurier Univ.",     league:"usports",gp:22,ppg:0.18,pm:1,nhle:0.02,szn:3,feeder:"usports: 3",   eligible:true, sample:false,pm_pg:0.05,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
+  {player:"Jordan Tourigny", pos:"D",team:"Baie-Comeau Drakkar",       league:"qmjhl",gp:40,ppg:0.18,pm:-9,nhle:0.02,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:-0.23,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[55.6,5.6,33.3,0,5.6]},
+  {player:"Nathan Sauder",   pos:"D",team:"Univ. of Western Ontario",  league:"usports",gp:17,ppg:0.00,pm:0,nhle:0.00,szn:5,feeder:"ohl: 4, usports: 1",eligible:true,sample:false,pm_pg:0.00,
+   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
+];
+
+D.forEach(p => { p.model_diff = p.ppg_proj !== p.pm_proj; });
+P.forEach(p => { p.model_diff = p.ppg_proj !== p.pm_proj; });
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let MODEL = 'ppg';
+let POS   = 'F';
+let SCOL  = 'nhle';
+let SASC  = false;
+
+// ── LABEL MAPS ─────────────────────────────────────────────────────────────
+const PLABELS_F = {
+  '1st_liner':'⭐ 1st Liner','2nd_liner':'2nd Liner',
+  'bottom_six_two_way':'Bottom 6 / Two-Way',
+  'checking':'Checking','fringe':'Fringe','n/a':'N/A'
+};
+const PLABELS_D = {
+  'number_1':'⭐ Number One D','top_pair':'Top Pair',
+  'middle_pair':'🔵 Middle Pair',
+  'bottom_pair':'🟠 Bottom Pair','fringe':'Fringe','n/a':'N/A'
+};
+const PCOLORS_F = ['#f59e0b','#475569','#3b82f6','#f97316','#ef4444'];
+const PLBLS_F   = ['1st Liner','2nd Liner','Bot 6/2-Way','Checking','Fringe'];
+const PCOLORS_D = ['#f97316','#ef4444','#3b82f6','#f59e0b','#475569'];
+const PLBLS_D   = ['Bottom Pair','Fringe','Middle Pair','Number One D','Top Pair'];
+const LGMAP     = {ncaa:'NCAA',ohl:'OHL',whl:'WHL',qmjhl:'QMJHL',usports:'USports'};
+
+const PROJ_OPTS_F = [
+  ['1st_liner','⭐ 1st Liner'],['2nd_liner','2nd Liner'],
+  ['bottom_six_two_way','🔵 Bottom Six / Two-Way'],
+  ['checking','🟠 Checking'],['fringe','🔴 Fringe']
+];
+const PROJ_OPTS_D = [
+  ['number_1','⭐ Number One D'],['top_pair','Top Pair'],
+  ['middle_pair','🔵 Middle Pair'],
+  ['bottom_pair','🟠 Bottom Pair'],['fringe','🔴 Fringe']
+];
+
+function curData()   { return POS==='F' ? P : D; }
+function curLabels() { return POS==='F' ? PLABELS_F : PLABELS_D; }
+function curColors() { return POS==='F' ? PCOLORS_F : PCOLORS_D; }
+function curLbls()   { return POS==='F' ? PLBLS_F   : PLBLS_D; }
+
+function probBar(ps) {
+  const clrs = curColors(), lbls = curLbls();
+  const segs = ps.map((v,i) => v>=1
+    ? `<div class="pseg" style="flex:${v};background:${clrs[i]}" title="${lbls[i]}: ${v.toFixed(1)}%"></div>`
+    : '').join('');
+  const top = Math.max(...ps), ti = ps.indexOf(top);
+  return `<div class="prow"><div class="pbar">${segs}</div><div class="plbl">${lbls[ti]}: ${top.toFixed(1)}%</div></div>`;
+}
+function pmClass(v) { return v>0.15?'pm-pos':v<-0.15?'pm-neg':'pm-neu'; }
+function pmSign(v)  { return (v>0?'+':'')+v.toFixed(2); }
+
+// ── PAGE + POSITION NAV ────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  const tabs = document.querySelectorAll('.nav-tab');
+  if (id==='players') { tabs[0].classList.add('active'); document.getElementById('pos-bar').style.display=''; }
+  if (id==='guide')   { tabs[1].classList.add('active'); document.getElementById('pos-bar').style.display='none'; }
+}
+
+function setPos(pos) {
+  POS = pos;
+  document.getElementById('btn-fwd').classList.toggle('active',  pos==='F');
+  document.getElementById('btn-dman').classList.toggle('active', pos==='D');
+  // Swap legend
+  const leg = document.getElementById('proj-legend');
+  if (pos === 'F') {
+    leg.innerHTML = `
+      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>1st Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>2nd Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Bottom 6 / Two-Way</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Checking</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>`;
+  } else {
+    leg.innerHTML = `
+      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>Number One D</div>
+      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>Top Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Middle Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Bottom Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>`;
+  }
+  // Reset projection filter options
+  const projOpts = pos==='F' ? PROJ_OPTS_F : PROJ_OPTS_D;
+  const sel = document.getElementById('s-proj');
+  sel.innerHTML = '<option value="">All Projections</option>' +
+    projOpts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+  buildTeams();
+  renderCards();
+  render();
+}
+
+// ── FILTER + SORT ──────────────────────────────────────────────────────────
+function buildTeams() {
+  const fl = document.getElementById('s-league').value;
+  const sel = document.getElementById('s-team');
+  const prev = sel.value;
+  const teams = [...new Set(
+    curData().filter(p => !fl || p.league === fl).map(p => p.team)
+  )].sort();
+  sel.innerHTML = '<option value="">All Teams</option>' +
+    teams.map(t => `<option value="${t}"${t===prev?' selected':''}>${t}</option>`).join('');
+  if (!teams.includes(prev)) sel.value = '';
+}
+
+function getFiltered() {
+  const q   = document.getElementById('s-search').value.toLowerCase();
+  const fl  = document.getElementById('s-league').value;
+  const ft  = document.getElementById('s-team').value;
+  const fp  = document.getElementById('s-proj').value;
+  const ff  = document.getElementById('s-flags').value;
+  const gpm = parseInt(document.getElementById('s-gp').value) || 0;
+  const pm  = MODEL==='pm';
+  return curData().filter(p => {
+    if (q   && !p.player.toLowerCase().includes(q)) return false;
+    if (fl  && p.league !== fl) return false;
+    if (ft  && p.team   !== ft) return false;
+    if (fp  && (pm ? p.pm_proj : p.ppg_proj) !== fp) return false;
+    if (ff==='eligible' && !p.eligible) return false;
+    if (ff==='sample'   && !p.sample)   return false;
+    if (ff==='diff'     && !p.model_diff) return false;
+    if (gpm > 0 && p.gp < gpm) return false;
+    return true;
+  });
+}
+function getSorted(d) {
+  return [...d].sort((a,b)=>{
+    let av=a[SCOL],bv=b[SCOL];
+    if(typeof av==='string'){av=av.toLowerCase();bv=bv.toLowerCase();}
+    if(av<bv) return SASC?-1:1;
+    if(av>bv) return SASC?1:-1;
+    return 0;
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function render() {
+  const data   = getSorted(getFiltered());
+  const pm     = MODEL==='pm';
+  const labels = curLabels();
+  const tbody  = document.getElementById('tbody');
+  const empty  = document.getElementById('empty');
+  document.getElementById('cnt').textContent = data.length;
+  document.getElementById('th-pm_pg').style.display = pm ? '' : 'none';
+  if(!data.length){tbody.innerHTML='';empty.style.display='';return;}
+  empty.style.display='none';
+  tbody.innerHTML = data.map(p=>{
+    const proj  = pm ? p.pm_proj  : p.ppg_proj;
+    const probs = pm ? p.pm_p     : p.ppg_p;
+    const diff  = pm && p.model_diff;
+    return `<tr>
+      <td>
+        <div class="pcell">
+          <div class="pname">${p.player}</div>
+          <div class="pmeta">
+            <span class="ptag">${p.pos}</span>
+            <div class="flags">
+              ${p.eligible?`<span class="flag fe" title="ECHL Eligible — player appears to be in their final eligible feeder season.">✓ ECHL</span>`:''}
+              ${p.sample?`<span class="flag fs" title="Sample Flag — current-season GP is below the 25%-of-season reliability floor.">⚠ Sample</span>`:''}
+              ${diff?`<span class="flag fd" title="Model Disagrees — the PPG + Per-Game ± model gives a different projection. Worth a closer look.">⚡ Diff</span>`:''}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <span class="lbadge lg-${p.league}">${LGMAP[p.league]||p.league}</span>
+          <span style="color:var(--muted);font-size:11px">${p.team}</span>
+        </div>
+      </td>
+      <td class="num">${p.gp}</td>
+      <td class="num">${p.ppg.toFixed(2)}</td>
+      <td class="num"><span class="nhle-v">${p.nhle.toFixed(2)}</span></td>
+      ${pm?`<td class="num"><span class="${pmClass(p.pm_pg)}" title="Per-game ±: ${p.pm_pg>0.15?'Positive':p.pm_pg<-0.15?'Negative':'Neutral'}">${pmSign(p.pm_pg)}</span></td>`:''}
+      <td><span class="pbadge p-${proj}">${labels[proj]||proj}</span></td>
+      <td>${probBar(probs)}</td>
+      <td><span class="fhist" title="${p.feeder} · ${p.szn} total feeder season${p.szn!==1?'s':''}">${p.feeder}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCards() {
+  const data = curData();
+  const el   = data.filter(p=>p.eligible).length;
+  const top1 = POS==='F'
+    ? data.filter(p=>p.ppg_proj==='1st_liner').length
+    : data.filter(p=>p.ppg_proj==='number_1').length;
+  const dif  = data.filter(p=>p.model_diff).length;
+  const lbl1 = POS==='F' ? '⭐ Projected 1st Liners (PPG)' : '⭐ Projected #1 D (PPG)';
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="card-val">${data.length}</div><div class="card-lbl">Total Players Scored</div></div>
+    <div class="card c-accent"><div class="card-val">${el}</div><div class="card-lbl">✓ ECHL Eligible</div></div>
+    <div class="card c-gold"><div class="card-val">${top1}</div><div class="card-lbl">${lbl1}</div></div>
+    <div class="card c-purple"><div class="card-val">${dif}</div><div class="card-lbl">⚡ Model Disagreements</div></div>`;
+}
+
+// ── CONTROLS ───────────────────────────────────────────────────────────────
+function setModel(m) {
+  MODEL = m;
+  document.getElementById('btn-ppg').classList.toggle('active', m==='ppg');
+  document.getElementById('btn-pm').classList.toggle('active',  m==='pm');
+  document.getElementById('pm-strip').classList.toggle('show',   m==='pm');
+  render();
+}
+
+function sortBy(col) {
+  SASC = (SCOL===col) ? !SASC : (col==='player');
+  SCOL = col;
+  document.querySelectorAll('thead th').forEach(th=>{
+    th.classList.remove('sorted');
+    const si=th.querySelector('.si');
+    if(si) si.textContent='↕';
+  });
+  const th = document.getElementById('th-'+col);
+  if(th){ th.classList.add('sorted'); const si=th.querySelector('.si'); if(si) si.textContent=SASC?'↑':'↓'; }
+  render();
+}
+
+function resetFilters() {
+  document.getElementById('s-search').value = '';
+  document.getElementById('s-league').value = '';
+  document.getElementById('s-proj').value   = '';
+  document.getElementById('s-flags').value  = '';
+  document.getElementById('s-gp').value     = 0;
+  document.getElementById('gp-val').textContent = '0';
+  buildTeams();
+  render();
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+setPos('F');   // populates projection dropdown + teams, renders cards + table
+showPage('players');
+</script>
+</body>
+</html>
