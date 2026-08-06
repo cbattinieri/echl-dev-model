@@ -101,13 +101,19 @@ def _feeder_seasons(careers: pd.DataFrame) -> pd.DataFrame:
 
 
 def _pro_experienced(careers: pd.DataFrame) -> set:
-    """Players with ANY career game in a pro league — already turned pro, so not
-    first-year ECHL candidates. Uses EP leagueLevel (dynamic) + a pro-slug set."""
+    """Players who are no longer first-year ECHL candidates — either they've
+    already PLAYED pro games, or they're already SIGNED to a pro club for an
+    upcoming season (a signing shows as a future-season roster row, often 0 GP,
+    e.g. Cody Morgan -> ECHL Fort Wayne 2026-27). Pro is detected via EP
+    leagueLevel (dynamic, catches leagues outside PRO_LEAGUES) + a slug set."""
     is_pro = careers["league"].isin(c.PRO_LEAGUES) | careers["league_level"].map(c.is_pro_level)
-    # Only count rows where they actually played (GP > 0), so a 0-GP roster
-    # placeholder doesn't disqualify anyone.
     gp = pd.to_numeric(careers["gp"], errors="coerce").fillna(0)
-    return set(careers.loc[is_pro & (gp > 0), "player"])
+    start_yr = pd.to_numeric(careers["season"].astype(str).str[:4], errors="coerce")
+    next_start = int(c.TARGET_SEASON.split("-")[0]) + 1   # season AFTER the target
+    # played pro (real games, any past/current season) OR rostered pro for a
+    # future season (a signing — any GP, incl. the 0-GP placeholder)
+    disq = is_pro & ((gp > 0) | (start_yr >= next_start))
+    return set(careers.loc[disq, "player"])
 
 
 def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
