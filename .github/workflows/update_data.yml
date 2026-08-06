@@ -1,15 +1,13 @@
 name: Update Data & Deploy
 
-# Rebuilds docs/data/players.json and lets GitHub Pages redeploy.
+# Rebuilds docs/data/players.json and deploys docs/ to GitHub Pages via Actions
+# (build_type: workflow — no Jekyll).
 #
 # Data source is chosen by build.py:
 #   * If the EP_API_KEY secret is set, --refresh re-pulls the feeder snapshot
 #     from EliteProspects, then scores off it.
 #   * If it is NOT set (default), build.py falls back to the committed
 #     data/feeder_snapshot.csv — a fully keyless run.
-# So this workflow works with or without the trial key: without it, refresh the
-# snapshot locally (EP_API_KEY=... python pipeline/build.py --refresh) and commit
-# the CSV; CI re-scores and deploys.
 
 on:
   schedule:
@@ -20,15 +18,25 @@ on:
       - "data/feeder_snapshot.csv"
       - "pipeline/**"
       - "model/**"
-      - "docs/index.html"
+      - "docs/**"
+      - ".github/workflows/update_data.yml"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,11 +55,23 @@ jobs:
           EP_API_KEY: ${{ secrets.EP_API_KEY }}   # optional; blank => snapshot
         run: python pipeline/build.py --refresh
 
-      - name: Commit updated data
+      - name: Commit refreshed data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/data/players.json
           [ -f data/feeder_snapshot.csv ] && git add data/feeder_snapshot.csv || true
           git diff --cached --quiet || git commit -m "chore: refresh ECHL projections $(date -u '+%Y-%m-%d') [skip ci]"
-          git push
+          git push || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload docs/ artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
