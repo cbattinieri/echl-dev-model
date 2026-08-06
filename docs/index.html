@@ -6,6 +6,7 @@
 <title>ECHL Rookie Dev Model — Batt Analytics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg:        #0b0d14;
@@ -261,6 +262,39 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
 .tip-ico { font-size:22px; line-height:1; flex-shrink:0; margin-top:1px; }
 .tip-body h4 { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
 .tip-body p  { color:var(--dim); font-size:12px; line-height:1.6; }
+/* ── COMPARE + EXPORT ── */
+.cb-col { width:36px; text-align:center; }
+.row-cb { accent-color:var(--accent); width:14px; height:14px; cursor:pointer; }
+tbody tr.sel-row { background:rgba(0,196,140,.10) !important; }
+.actionbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:10px 16px; margin-bottom:12px; }
+.ab-count { color:var(--dim); font-size:12px; }
+.ab-count b { color:var(--accent); }
+.ab-spacer { flex:1; }
+.ab-btn { background:transparent; border:1px solid var(--borderl); color:var(--text); font-family:'IBM Plex Mono',monospace; font-size:12px; padding:6px 12px; border-radius:4px; cursor:pointer; transition:all .15s; }
+.ab-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+.ab-btn:disabled { opacity:.4; cursor:not-allowed; }
+.ab-btn.primary { background:var(--accent); border-color:var(--accent); color:#04110c; font-weight:600; }
+.ab-btn.primary:hover:not(:disabled) { background:#00d99b; color:#04110c; }
+/* compare overlay */
+.cmp-overlay { position:fixed; inset:0; background:rgba(4,6,12,.72); z-index:100; display:none; padding:34px 20px; overflow:auto; }
+.cmp-overlay.show { display:block; }
+.cmp-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; max-width:1200px; margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,.5); }
+.cmp-top { display:flex; align-items:center; gap:14px; padding:16px 22px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg-card); border-radius:10px 10px 0 0; z-index:2; }
+.cmp-title { font-family:'Barlow Condensed',sans-serif; font-size:19px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--text); flex:1; }
+.cmp-x { background:transparent; border:1px solid var(--borderl); color:var(--dim); border-radius:5px; font-size:13px; padding:6px 12px; cursor:pointer; }
+.cmp-x:hover { border-color:var(--cf); color:var(--cf); }
+.cmp-scroll { overflow-x:auto; padding:18px 22px 26px; }
+.ctbl { border-collapse:collapse; width:100%; min-width:520px; }
+.ctbl td, .ctbl th { padding:9px 12px; border-bottom:1px solid var(--border); text-align:center; font-size:12px; vertical-align:middle; }
+.ctbl .clbl { text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; white-space:nowrap; position:sticky; left:0; background:var(--bg-card); }
+.ctbl .cphdr { min-width:170px; }
+.cp-nm { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; color:var(--text); }
+.cp-sub { color:var(--muted); font-size:11px; margin-top:2px; }
+.cp-rm { margin-top:7px; background:transparent; border:1px solid var(--borderl); color:var(--dim); border-radius:4px; font-size:10px; padding:3px 8px; cursor:pointer; }
+.cp-rm:hover { border-color:var(--cf); color:var(--cf); }
+.ctbl .csect td { background:#0c1020; color:var(--accent); font-size:10px; letter-spacing:.1em; text-transform:uppercase; text-align:left; font-weight:700; }
+.ctbl .cbest { color:var(--accent); font-weight:700; }
+.ctbl .cbar { min-width:150px; }
 </style>
 </head>
 <body>
@@ -373,6 +407,16 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
     <div class="cnt">Showing <span id="cnt">—</span> players</div>
   </div>
 
+  <!-- compare + export action bar -->
+  <div class="actionbar">
+    <span class="ab-count"><b id="ab-sel">0</b> selected · check rows to build a shortlist (max 5)</span>
+    <span class="ab-spacer"></span>
+    <button class="ab-btn primary" id="ab-compare" onclick="openCompare()" disabled>⚔️ Compare</button>
+    <button class="ab-btn" id="ab-clear" onclick="clearShortlist()" disabled>Clear</button>
+    <button class="ab-btn" onclick="exportXlsx('selected')" id="ab-exp-sel" disabled>📥 Export Selected</button>
+    <button class="ab-btn" onclick="exportXlsx('filtered')">📥 Export Filtered (<span id="ab-fl">0</span>)</button>
+  </div>
+
   <!-- PM info strip -->
   <div class="info-strip" id="pm-strip">
     <strong>PPG + Per-Game ± Model active.</strong>&nbsp; This version adjusts projections based on a player's on-ice impact <em>rate</em> (±/game) from their final feeder season — removing volume distortion across different league schedule lengths. A player at −0.15/gm or below is flagged negative; +0.15/gm or above is positive.&nbsp; <strong>⚡ Model Disagrees</strong> means this model gives a different projection than the PPG-only model — worth a closer look before making a decision.
@@ -400,6 +444,7 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
       <table>
         <thead>
           <tr>
+            <th class="cb-col"></th>
             <th id="th-player"  onclick="sortBy('player')">Player <span class="si">↕</span></th>
             <th id="th-league"  onclick="sortBy('league')">League <span class="si">↕</span></th>
             <th id="th-gp"      onclick="sortBy('gp')" class="num">GP <span class="si">↕</span></th>
@@ -419,6 +464,18 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
       <p>No players match your filters.</p>
     </div>
   </div>
+
+<!-- COMPARE MODAL -->
+<div class="cmp-overlay" id="cmp-overlay" onclick="if(event.target===this)closeCompare()">
+  <div class="cmp-modal">
+    <div class="cmp-top">
+      <div class="cmp-title" id="cmp-title">Player Comparison</div>
+      <button class="ab-btn" onclick="exportXlsx('selected')">📥 Export</button>
+      <button class="cmp-x" onclick="closeCompare()">✕ Close</button>
+    </div>
+    <div class="cmp-scroll"><table class="ctbl" id="cmp-tbl"></table></div>
+  </div>
+</div>
 
 </div><!-- /main -->
 
@@ -812,13 +869,16 @@ function render() {
   const empty  = document.getElementById('empty');
   document.getElementById('cnt').textContent = data.length;
   document.getElementById('th-pm_pg').style.display = pm ? '' : 'none';
+  updateActionBar();
   if(!data.length){tbody.innerHTML='';empty.style.display='';return;}
   empty.style.display='none';
   tbody.innerHTML = data.map(p=>{
     const proj  = pm ? p.pm_proj  : p.ppg_proj;
     const probs = pm ? p.pm_p     : p.ppg_p;
     const diff  = pm && p.model_diff;
-    return `<tr>
+    const k = pkey(p);
+    return `<tr class="${shortlist.has(k)?'sel-row':''}">
+      <td class="cb-col"><input type="checkbox" class="row-cb" data-key="${k.replace(/"/g,'&quot;')}" ${shortlist.has(k)?'checked':''} onclick="toggleSelect(this.dataset.key, event)"></td>
       <td>
         <div class="pcell">
           <div class="pname">${p.player}</div>
@@ -847,6 +907,123 @@ function render() {
       <td><span class="fhist" title="${p.feeder} · ${p.szn} total feeder season${p.szn!==1?'s':''}">${p.feeder}</span></td>
     </tr>`;
   }).join('');
+}
+
+// ── COMPARE + EXPORT ────────────────────────────────────────────────────────
+let shortlist = new Map();   // key -> record
+function pkey(p){ return `${p.player}|${p.league}|${p.team}`; }
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+function cssEsc(s){ return String(s).replace(/["\\]/g,'\\$&'); }
+function isDman(p){ return String(p.pos||'').toUpperCase().includes('D'); }
+function colorsForP(p){ return isDman(p)?PCOLORS_D:PCOLORS_F; }
+function lblsForP(p){ return isDman(p)?PLBLS_D:PLBLS_F; }
+function labelsForP(p){ return isDman(p)?PLABELS_D:PLABELS_F; }
+function findRec(key){ return P.find(p=>pkey(p)===key) || D.find(p=>pkey(p)===key); }
+
+function probBarP(p, ps){
+  const clrs=colorsForP(p), lbls=lblsForP(p);
+  const segs=ps.map((v,i)=> v>=1 ? `<div class="pseg" style="flex:${v};background:${clrs[i]}" title="${lbls[i]}: ${v.toFixed(1)}%"></div>`:'').join('');
+  const top=Math.max(...ps), ti=ps.indexOf(top);
+  return `<div class="prow"><div class="pbar">${segs}</div><div class="plbl">${lbls[ti]}: ${top.toFixed(1)}%</div></div>`;
+}
+function distText(p, ps){
+  const lbls=lblsForP(p);
+  return ps.map((v,i)=>[lbls[i],v]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]).map(x=>`${x[0]} ${x[1].toFixed(1)}%`).join(' · ');
+}
+
+function toggleSelect(key, e){
+  if(e) e.stopPropagation();
+  if(shortlist.has(key)){ shortlist.delete(key); }
+  else {
+    if(shortlist.size>=5){
+      alert('Maximum 5 players can be compared. Uncheck one first.');
+      const cb=document.querySelector(`input.row-cb[data-key="${cssEsc(key)}"]`); if(cb) cb.checked=false;
+      return;
+    }
+    const rec=findRec(key); if(rec) shortlist.set(key, rec);
+  }
+  const cb=document.querySelector(`input.row-cb[data-key="${cssEsc(key)}"]`);
+  if(cb){ cb.checked=shortlist.has(key); const row=cb.closest('tr'); if(row) row.classList.toggle('sel-row', shortlist.has(key)); }
+  updateActionBar();
+}
+function removeFromCompare(key){
+  shortlist.delete(key);
+  const cb=document.querySelector(`input.row-cb[data-key="${cssEsc(key)}"]`);
+  if(cb){ cb.checked=false; const row=cb.closest('tr'); if(row) row.classList.remove('sel-row'); }
+  updateActionBar();
+  if(document.getElementById('cmp-overlay').classList.contains('show')){
+    if(shortlist.size<2) closeCompare(); else renderCompare();
+  }
+}
+function clearShortlist(){
+  shortlist.clear();
+  document.querySelectorAll('input.row-cb').forEach(cb=>{ cb.checked=false; const r=cb.closest('tr'); if(r) r.classList.remove('sel-row'); });
+  updateActionBar(); closeCompare();
+}
+function updateActionBar(){
+  const n=shortlist.size;
+  document.getElementById('ab-sel').textContent=n;
+  document.getElementById('ab-fl').textContent=getFiltered().length;
+  const ok=n>=2 && n<=5;
+  document.getElementById('ab-compare').disabled=!ok;
+  document.getElementById('ab-clear').disabled=n===0;
+  document.getElementById('ab-exp-sel').disabled=n===0;
+}
+
+function openCompare(){ if(shortlist.size<2) return; renderCompare(); document.getElementById('cmp-overlay').classList.add('show'); }
+function closeCompare(){ document.getElementById('cmp-overlay').classList.remove('show'); }
+function bestIdx(vals){ const nums=vals.map(parseFloat); if(nums.some(isNaN)) return -1; const mx=Math.max(...nums); return nums.every(v=>v===nums[0])?-1:nums.indexOf(mx); }
+
+function renderCompare(){
+  const players=[...shortlist.values()];
+  document.getElementById('cmp-title').textContent=`Player Comparison (${players.length})`;
+  const cs=players.length+1;
+  const cell=(v,best)=>`<td class="${best?'cbest':''}">${v}</td>`;
+  const rowNum=(label,get,fmt=(x)=>x)=>{
+    const raw=players.map(get); const bi=bestIdx(raw);
+    return `<tr><td class="clbl">${label}</td>${raw.map((v,i)=>cell(fmt(v), i===bi)).join('')}</tr>`;
+  };
+  let h='<thead><tr><th class="clbl" style="background:var(--bg-card)"></th>';
+  players.forEach(p=>{ h+=`<th class="cphdr"><div class="cp-nm">${p.player}</div><div class="cp-sub">${p.pos} · ${LGMAP[p.league]||p.league} · ${p.team}</div><button class="cp-rm" data-k="${escAttr(pkey(p))}" onclick="removeFromCompare(this.dataset.k)">✕ Remove</button></th>`; });
+  h+='</tr></thead><tbody>';
+  h+=`<tr class="csect"><td colspan="${cs}">Production</td></tr>`;
+  h+=rowNum('GP', p=>p.gp);
+  h+=rowNum('PPG', p=>p.ppg, v=>v.toFixed(2));
+  h+=rowNum('+/−', p=>p.pm, v=>(v>0?'+':'')+v);
+  h+=rowNum('Per-Game ±', p=>p.pm_pg, v=>(v>0?'+':'')+v.toFixed(2));
+  h+=rowNum('NHLe PPG', p=>p.nhle, v=>v.toFixed(2));
+  h+=`<tr class="csect"><td colspan="${cs}">Eligibility</td></tr>`;
+  h+=`<tr><td class="clbl">ECHL Likely</td>${players.map(p=>`<td>${p.eligible?'<span style="color:var(--accent)">✓ Yes</span>':'<span style="color:var(--muted)">No</span>'}</td>`).join('')}</tr>`;
+  h+=`<tr><td class="clbl">Sample Flag</td>${players.map(p=>`<td>${p.sample?'⚠ Yes':'—'}</td>`).join('')}</tr>`;
+  h+=`<tr><td class="clbl">Career</td>${players.map(p=>`<td>${p.feeder}</td>`).join('')}</tr>`;
+  h+=`<tr class="csect"><td colspan="${cs}">PPG Model</td></tr>`;
+  h+=`<tr><td class="clbl">Projection</td>${players.map(p=>`<td><span class="pbadge p-${p.ppg_proj}">${labelsForP(p)[p.ppg_proj]||p.ppg_proj}</span></td>`).join('')}</tr>`;
+  h+=`<tr><td class="clbl">Distribution</td>${players.map(p=>`<td class="cbar">${probBarP(p,p.ppg_p)}</td>`).join('')}</tr>`;
+  h+=`<tr class="csect"><td colspan="${cs}">PPG + Per-Game ± Model</td></tr>`;
+  h+=`<tr><td class="clbl">Projection</td>${players.map(p=>`<td><span class="pbadge p-${p.pm_proj}">${labelsForP(p)[p.pm_proj]||p.pm_proj}</span></td>`).join('')}</tr>`;
+  h+=`<tr><td class="clbl">Distribution</td>${players.map(p=>`<td class="cbar">${probBarP(p,p.pm_p)}</td>`).join('')}</tr>`;
+  h+='</tbody>';
+  document.getElementById('cmp-tbl').innerHTML=h;
+}
+
+function exportXlsx(type){
+  if(typeof XLSX==='undefined'){ alert('Export library not loaded — check your connection.'); return; }
+  const source = type==='selected' ? [...shortlist.values()] : getSorted(getFiltered());
+  if(!source.length){ alert('No players to export.'); return; }
+  const headers=['Player','Position','Team','League','GP','PPG','+/-','Per-Game +/-','NHLe PPG','ECHL Likely','Sample','PPG Projection','PPG Distribution','PM Projection','PM Distribution'];
+  const rows=source.map(p=>[
+    p.player, p.pos, p.team, (LGMAP[p.league]||p.league),
+    p.gp, Number(p.ppg.toFixed(2)), p.pm, Number(p.pm_pg.toFixed(2)), Number(p.nhle.toFixed(2)),
+    p.eligible?'Yes':'No', p.sample?'Yes':'No',
+    labelsForP(p)[p.ppg_proj]||p.ppg_proj, distText(p,p.ppg_p),
+    labelsForP(p)[p.pm_proj]||p.pm_proj, distText(p,p.pm_p),
+  ]);
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws['!cols']=[{wch:22},{wch:8},{wch:22},{wch:8},{wch:5},{wch:6},{wch:6},{wch:12},{wch:9},{wch:11},{wch:8},{wch:16},{wch:42},{wch:16},{wch:42}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, type==='selected'?'Shortlist':'Filtered');
+  const today=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `echl_dev_${type}_${today}.xlsx`);
 }
 
 function renderCards() {

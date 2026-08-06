@@ -13,6 +13,11 @@ Scores every current-season forward and defenseman in the NCAA, OHL, WHL, QMJHL,
 and USports against historical ECHL rookie outcomes, and outputs a probability
 distribution across five lineup-fit tiers per player.
 
+**Compare & export** (ported from the Veteran Tracker): check up to 5 rows to build
+a shortlist, open a side-by-side **Compare** grid (best value per row highlighted,
+both models shown), and **export** either your shortlist or the full filtered list
+to `.xlsx` (via SheetJS).
+
 The population is **dynamic**: players who have already played professional games
 (NHL, AHL, ECHL, top European leagues, …) are dropped automatically — the model
 projects a player's *first* pro season, so someone like Celebrini or Will Smith
