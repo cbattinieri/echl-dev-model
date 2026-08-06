@@ -51,6 +51,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/data/players.json data/feeder_snapshot.csv
+          git add docs/data/players.json
+          [ -f data/feeder_snapshot.csv ] && git add data/feeder_snapshot.csv || true
           git diff --cached --quiet || git commit -m "chore: refresh ECHL projections $(date -u '+%Y-%m-%d') [skip ci]"
           git push
