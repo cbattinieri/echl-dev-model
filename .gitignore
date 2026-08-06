@@ -1,18 +1,19 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pkl
-*.csv
-*.xlsx
+
+# Secrets — the EP key is ONLY ever an env var, never a file
 .env
 
-# Jupyter
+# Local scratch / notebooks / spreadsheets
 .ipynb_checkpoints/
 *.ipynb
+*.xlsx
+*.log
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Local dev
-*.log
+# NOTE: model/*.pkl, data/feeder_snapshot.csv, and docs/data/players.json ARE
+# tracked — they are the committed model + keyless data snapshot + app payload.

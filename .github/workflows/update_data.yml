@@ -1,0 +1,56 @@
+name: Update Data & Deploy
+
+# Rebuilds docs/data/players.json and lets GitHub Pages redeploy.
+#
+# Data source is chosen by build.py:
+#   * If the EP_API_KEY secret is set, --refresh re-pulls the feeder snapshot
+#     from EliteProspects, then scores off it.
+#   * If it is NOT set (default), build.py falls back to the committed
+#     data/feeder_snapshot.csv — a fully keyless run.
+# So this workflow works with or without the trial key: without it, refresh the
+# snapshot locally (EP_API_KEY=... python pipeline/build.py --refresh) and commit
+# the CSV; CI re-scores and deploys.
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"      # Mondays 13:00 UTC
+  push:
+    branches: [main]
+    paths:
+      - "data/feeder_snapshot.csv"
+      - "pipeline/**"
+      - "model/**"
+      - "docs/index.html"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build players.json
+        env:
+          EP_API_KEY: ${{ secrets.EP_API_KEY }}   # optional; blank => snapshot
+        run: python pipeline/build.py --refresh
+
+      - name: Commit updated data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/players.json data/feeder_snapshot.csv
+          git diff --cached --quiet || git commit -m "chore: refresh ECHL projections $(date -u '+%Y-%m-%d') [skip ci]"
+          git push

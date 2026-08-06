@@ -277,7 +277,7 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
     </div>
     <div class="season-info">
       <div class="season-badge">2025–2026 Season</div>
-      <div class="updated">Updated March 19, 2026</div>
+      <div class="updated" id="updated">Loading…</div>
     </div>
   </div>
 </header>
@@ -329,9 +329,8 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
     </div>
     <div class="fg">
       <label>Team</label>
-      <select id="s-team" onchange="render()">
-        <option value="">All Teams</option>
-      </select>
+      <input type="text" id="s-team" list="team-list" placeholder="All Teams" autocomplete="off" oninput="render()">
+      <datalist id="team-list"></datalist>
     </div>
     <div class="fg">
       <label>Projection</label>
@@ -340,10 +339,17 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
       </select>
     </div>
     <div class="fg">
+      <label>ECHL Likely</label>
+      <select id="s-likely" onchange="render()">
+        <option value="">All Players</option>
+        <option value="yes">✅ ECHL Likely Only</option>
+        <option value="no">Not Likely</option>
+      </select>
+    </div>
+    <div class="fg">
       <label>Flags</label>
       <select id="s-flags" onchange="render()">
         <option value="">All Players</option>
-        <option value="eligible">✅ ECHL Eligible Only</option>
         <option value="sample">⚠️ Sample Flag</option>
         <option value="diff">⚡ Model Disagrees</option>
       </select>
@@ -548,10 +554,10 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
     <div class="gsec-title">🚩 What Do the Flags Mean?</div>
     <div class="flag-grid">
       <div class="flag-card">
-        <span class="flag fe">✓ ECHL Eligible</span>
+        <span class="flag fe">✓ ECHL Likely</span>
         <h3>Turning Pro This Offseason</h3>
         <p>This player appears to be in their final eligible season in their feeder league — they're either a college senior (4th year NCAA or 3rd+ year USports) or an overage-eligible junior (3rd+ year CHL). In plain terms: <strong style="color:var(--text)">this is a player you could actually sign this coming offseason.</strong></p>
-        <div class="eg">💡 Use the "ECHL Eligible Only" filter to see only players who are realistically available next season.</div>
+        <div class="eg">💡 Use the "ECHL Likely" filter to see only players who are realistically available next season.</div>
       </div>
       <div class="flag-card">
         <span class="flag fs">⚠ Sample Flag</span>
@@ -605,8 +611,8 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
       <div class="tip">
         <div class="tip-ico">🎯</div>
         <div class="tip-body">
-          <h4>Start With ECHL Eligible Filter</h4>
-          <p>Toggle "ECHL Eligible Only" in the Flags dropdown to instantly narrow to players who could actually be signed this offseason. This removes underclassmen and keeps the list actionable.</p>
+          <h4>Start With the ECHL Likely Filter</h4>
+          <p>Set the "ECHL Likely" filter to "ECHL Likely Only" to instantly narrow to players who could actually be signed this offseason. This removes underclassmen and keeps the list actionable.</p>
         </div>
       </div>
       <div class="tip">
@@ -655,113 +661,14 @@ nav { background:var(--bg-card); border-bottom:1px solid var(--border); }
 // prob arrays: F = [1st_liner%, 2nd_liner%, bot_six_two_way%, checking%, fringe%]
 //              D = [bottom_pair%, fringe%, middle_pair%, number_1%, top_pair%]
 
-const P = [
-  // ── NCAA (eligible = 4+ NCAA seasons) ──────────────────────────────────
-  {player:"Cruz Lucius",       pos:"RW",team:"Arizona State Univ.",   league:"ncaa",gp:22,ppg:1.45,pm:8,  nhle:0.28,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.36,
-   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
-  {player:"Bennett Schimek",   pos:"F", team:"Arizona State Univ.",   league:"ncaa",gp:22,ppg:1.41,pm:8,  nhle:0.27,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.36,
-   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
-  {player:"Ryan Chesley",      pos:"C", team:"Univ. of Michigan",     league:"ncaa",gp:20,ppg:0.80,pm:5,  nhle:0.16,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.25,
-   ppg_proj:"1st_liner",       ppg_p:[45.7,20.0,8.6,0,25.7],  pm_proj:"1st_liner",       pm_p:[68.8,12.5,0,0,18.8]},
-  {player:"Trevor Connelly",   pos:"LW",team:"Providence College",    league:"ncaa",gp:21,ppg:0.71,pm:3,  nhle:0.14,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.14,
-   ppg_proj:"2nd_liner",       ppg_p:[27.7,36.2,8.5,4.3,23.4],pm_proj:"2nd_liner",       pm_p:[34.4,37.5,0,0,28.1]},
-  {player:"Jake Dunlap",       pos:"C", team:"Univ. of Denver",       league:"ncaa",gp:22,ppg:0.59,pm:-2, nhle:0.11,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.09,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[11.1,44.4,11.1,11.1,22.2]},
-  {player:"Cole Fonstad",      pos:"LW",team:"Univ. of North Dakota",  league:"ncaa",gp:22,ppg:0.50,pm:1,  nhle:0.10,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:0.05,
-   ppg_proj:"2nd_liner",       ppg_p:[11.1,37.0,3.7,14.8,33.3],pm_proj:"2nd_liner",      pm_p:[20.0,40.0,20.0,0,20.0]},
-  {player:"Dillon Hamaliuk",   pos:"LW",team:"St. Cloud State Univ.", league:"ncaa",gp:20,ppg:0.45,pm:-3, nhle:0.09,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.15,
-   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"fringe",         pm_p:[8.3,25.0,8.3,8.3,50.0]},
-  {player:"Tristan Mullin",    pos:"RW",team:"Merrimack College",     league:"ncaa",gp:20,ppg:0.35,pm:-7, nhle:0.07,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.35,
-   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
-  {player:"Andrew Strathmann", pos:"C", team:"Army West Point",       league:"ncaa",gp:18,ppg:0.22,pm:-4, nhle:0.04,szn:4,feeder:"ncaa: 4",           eligible:true, sample:false,pm_pg:-0.22,
-   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[13.3,13.3,0,13.3,60.0]},
-  {player:"Max Plante",        pos:"C", team:"Univ. of MN-Duluth",   league:"ncaa",gp:20,ppg:1.50,pm:16, nhle:0.29,szn:2,feeder:"ncaa: 2",           eligible:false,sample:false,pm_pg:0.80,
-   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
-  {player:"Marcus Sylvegard",  pos:"RW",team:"Boston College",        league:"ncaa",gp:20,ppg:0.55,pm:-8, nhle:0.11,szn:3,feeder:"ncaa: 3",           eligible:false,sample:false,pm_pg:-0.40,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"checking",        pm_p:[21.1,26.3,5.3,5.3,42.1]},
-  {player:"Nate Danielson",    pos:"C", team:"Western Michigan Univ.",league:"ncaa",gp:12,ppg:0.25,pm:0,  nhle:0.05,szn:4,feeder:"ncaa: 4",           eligible:true, sample:true, pm_pg:0.00,
-   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[9.1,18.2,9.1,13.6,50.0]},
-  {player:"Jett Luchanko",     pos:"C", team:"Guelph Storm",          league:"ohl", gp:17,ppg:1.47,pm:8,  nhle:0.21,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.47,
-   ppg_proj:"1st_liner",       ppg_p:[51.5,27.3,0,3.0,18.2],  pm_proj:"1st_liner",       pm_p:[59.3,29.6,0,0,11.1]},
-  {player:"James Malatesta",   pos:"LW",team:"Hamilton Bulldogs",     league:"ohl", gp:40,ppg:1.10,pm:12, nhle:0.16,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.30,
-   ppg_proj:"1st_liner",       ppg_p:[45.7,20.0,8.6,0,25.7],  pm_proj:"1st_liner",       pm_p:[68.8,12.5,0,0,18.8]},
-  {player:"Calum Ritchie",     pos:"C", team:"Oshawa Generals",       league:"ohl", gp:38,ppg:0.97,pm:8,  nhle:0.14,szn:3,feeder:"ohl: 3",            eligible:true, sample:false,pm_pg:0.21,
-   ppg_proj:"2nd_liner",       ppg_p:[27.7,36.2,8.5,4.3,23.4],pm_proj:"2nd_liner",       pm_p:[34.4,37.5,0,0,28.1]},
-  {player:"Alex Pharand",      pos:"C", team:"Sudbury Wolves",        league:"ohl", gp:42,ppg:0.76,pm:-6, nhle:0.11,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:-0.14,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[11.1,44.4,11.1,11.1,22.2]},
-  {player:"Luca Pinelli",      pos:"C", team:"Ottawa 67's",           league:"ohl", gp:38,ppg:0.68,pm:4,  nhle:0.10,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:0.11,
-   ppg_proj:"2nd_liner",       ppg_p:[11.1,37.0,3.7,14.8,33.3],pm_proj:"2nd_liner",      pm_p:[20.0,40.0,20.0,0,20.0]},
-  {player:"Danny Zhilkin",     pos:"C", team:"Guelph Storm",          league:"ohl", gp:42,ppg:0.50,pm:-11,nhle:0.07,szn:4,feeder:"ohl: 4",            eligible:true, sample:false,pm_pg:-0.26,
-   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
-  {player:"Braeden Kressler",  pos:"C", team:"Windsor Spitfires",     league:"ohl", gp:24,ppg:0.38,pm:-14,nhle:0.05,szn:3,feeder:"ohl: 3",            eligible:true, sample:false,pm_pg:-0.58,
-   ppg_proj:"fringe",          ppg_p:[8.2,14.3,6.1,12.2,59.2],  pm_proj:"fringe",        pm_p:[13.3,13.3,0,13.3,60.0]},
-  {player:"Easton Cowan",      pos:"C", team:"London Knights",        league:"ohl", gp:40,ppg:0.58,pm:3,  nhle:0.08,szn:2,feeder:"ohl: 2",            eligible:false,sample:false,pm_pg:0.08,
-   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"bottom_six_two_way",pm_p:[23.1,7.7,23.1,15.4,30.8]},
-  {player:"Tanner Molendyk",   pos:"C", team:"Saskatoon Blades",      league:"whl", gp:44,ppg:0.86,pm:18, nhle:0.12,szn:4,feeder:"whl: 4",            eligible:true, sample:false,pm_pg:0.41,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
-  {player:"Gracyn Sawchyn",    pos:"LW",team:"Seattle Thunderbirds",  league:"whl", gp:40,ppg:0.78,pm:6,  nhle:0.11,szn:3,feeder:"whl: 3",            eligible:true, sample:false,pm_pg:0.15,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
-  {player:"Carter Streek",     pos:"LW",team:"Kelowna Rockets",       league:"whl", gp:38,ppg:0.63,pm:-3, nhle:0.09,szn:4,feeder:"whl: 4",            eligible:true, sample:false,pm_pg:-0.08,
-   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"fringe",         pm_p:[8.3,25.0,8.3,8.3,50.0]},
-  {player:"Cam Squires",       pos:"RW",team:"Cape Breton Eagles",    league:"qmjhl",gp:42,ppg:0.95,pm:11, nhle:0.11,szn:4,feeder:"qmjhl: 4",          eligible:true, sample:false,pm_pg:0.26,
-   ppg_proj:"2nd_liner",       ppg_p:[24.5,32.1,7.5,3.8,32.1],pm_proj:"2nd_liner",       pm_p:[29.2,33.3,8.3,0,29.2]},
-  {player:"Felix Lacroix",     pos:"C", team:"Sherbrooke Phoenix",    league:"qmjhl",gp:40,ppg:0.55,pm:-7, nhle:0.06,szn:4,feeder:"qmjhl: 4",          eligible:true, sample:false,pm_pg:-0.18,
-   ppg_proj:"fringe",          ppg_p:[4.1,24.5,14.3,18.4,38.8], pm_proj:"fringe",        pm_p:[0,14.3,7.1,28.6,50.0]},
-  {player:"Stephen Anderson",  pos:"C", team:"Alberta Golden Bears",  league:"usports",gp:22,ppg:1.05,pm:12,nhle:0.13,szn:3,feeder:"usports: 3",      eligible:true, sample:false,pm_pg:0.55,
-   ppg_proj:"2nd_liner",       ppg_p:[43.8,25.0,3.1,0,28.1],  pm_proj:"1st_liner",       pm_p:[58.8,29.4,0,0,11.8]},
-  {player:"Carson Stadnyk",    pos:"LW",team:"MacEwan Griffins",      league:"usports",gp:24,ppg:0.75,pm:15,nhle:0.09,szn:4,feeder:"usports: 4",      eligible:true, sample:false,pm_pg:0.63,
-   ppg_proj:"fringe",          ppg_p:[23.2,21.4,16.1,7.1,32.1],pm_proj:"1st_liner",      pm_p:[35.7,28.6,14.3,7.1,14.3]},
-];
+let P = [];
 
 // ── DEFENSEMAN DATA ─────────────────────────────────────────────────────────
 // prob arrays: [bottom_pair%, fringe%, middle_pair%, number_1%, top_pair%]
 // Calibrated from actual propensity_lookup_dman.pkl
 
-const D = [
-  {player:"Eric Pohlkamp",   pos:"D",team:"Univ. of Denver",          league:"ncaa",gp:23,ppg:1.04,pm:12, nhle:0.20,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:0.52,
-   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Ty Hanson",       pos:"D",team:"Univ. of MN-Duluth",       league:"ncaa",gp:22,ppg:1.09,pm:17, nhle:0.21,szn:2,feeder:"ncaa: 2",        eligible:false,sample:false,pm_pg:0.77,
-   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Tyler Dunbar",    pos:"D",team:"Union College",             league:"ncaa",gp:21,ppg:1.10,pm:17, nhle:0.21,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:0.81,
-   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Cole Hutson",     pos:"D",team:"Boston Univ.",              league:"ncaa",gp:19,ppg:1.05,pm:8,  nhle:0.20,szn:2,feeder:"ncaa: 2",        eligible:false,sample:false,pm_pg:0.42,
-   ppg_proj:"number_1",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"number_1",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Chris Hedden",    pos:"D",team:"Air Force Academy",         league:"ncaa",gp:22,ppg:0.95,pm:3,  nhle:0.18,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.14,
-   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"middle_pair",pm_p:[0,0,50.0,0,50.0]},
-  {player:"Jack Devine",     pos:"D",team:"Northeastern Univ.",        league:"ncaa",gp:20,ppg:0.85,pm:9,  nhle:0.16,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.45,
-   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"top_pair",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Matt Savoie",     pos:"D",team:"Univ. of North Dakota",     league:"ncaa",gp:21,ppg:0.76,pm:4,  nhle:0.15,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.19,
-   ppg_proj:"top_pair",  ppg_p:[5.9,0,29.4,26.5,38.2],  pm_proj:"top_pair",  pm_p:[4.8,0,19.0,28.6,47.6]},
-  {player:"Marcus Glyba",    pos:"D",team:"Michigan Tech",             league:"ncaa",gp:20,ppg:0.55,pm:2,  nhle:0.11,szn:4,feeder:"ncaa: 4",        eligible:true, sample:false,pm_pg:0.10,
-   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"middle_pair",pm_p:[21.4,7.1,35.7,28.6,7.1]},
-  {player:"Ryan O'Connell",  pos:"D",team:"Quinnipiac Univ.",          league:"ncaa",gp:22,ppg:0.45,pm:-4, nhle:0.09,szn:3,feeder:"ncaa: 3",        eligible:false,sample:false,pm_pg:-0.18,
-   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"bottom_pair",pm_p:[75.0,0,0,25.0,0]},
-  {player:"Tanner Howe",     pos:"D",team:"Regina Pats",               league:"whl", gp:42,ppg:0.69,pm:11, nhle:0.10,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:0.26,
-   ppg_proj:"bottom_pair",ppg_p:[28.2,7.7,25.6,17.9,20.5],pm_proj:"top_pair",  pm_p:[23.8,9.5,23.8,9.5,33.3]},
-  {player:"Ethan Gauthier",  pos:"D",team:"Sherbrooke Phoenix",        league:"qmjhl",gp:38,ppg:0.55,pm:5,  nhle:0.06,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:0.13,
-   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"bottom_pair",pm_p:[50.0,12.5,12.5,0,25.0]},
-  {player:"Alex Peck",       pos:"D",team:"Lethbridge Hurricanes",     league:"whl", gp:40,ppg:0.43,pm:-8, nhle:0.06,szn:4,feeder:"whl: 4",         eligible:true, sample:false,pm_pg:-0.20,
-   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"middle_pair",pm_p:[20.0,20.0,60.0,0,0]},
-  {player:"Mathieu Gagnon",  pos:"D",team:"Val-d'Or Foreurs",          league:"qmjhl",gp:36,ppg:0.39,pm:3,  nhle:0.04,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:0.08,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
-  {player:"Carter Lowe",     pos:"D",team:"Saskatoon Blades",          league:"whl", gp:38,ppg:0.32,pm:-6, nhle:0.05,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:-0.16,
-   ppg_proj:"bottom_pair",ppg_p:[51.6,9.7,22.6,3.2,12.9], pm_proj:"middle_pair",pm_p:[20.0,20.0,60.0,0,0]},
-  {player:"Noah Delmas",     pos:"D",team:"St. Francis Xavier Univ.",  league:"usports",gp:20,ppg:0.30,pm:2,nhle:0.04,szn:3,feeder:"usports: 3",   eligible:true, sample:false,pm_pg:0.10,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
-  {player:"Tyler Brennan",   pos:"D",team:"Saginaw Spirit",            league:"ohl", gp:24,ppg:0.25,pm:-12,nhle:0.04,szn:3,feeder:"ohl: 3",         eligible:true, sample:false,pm_pg:-0.50,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[55.6,5.6,33.3,0,5.6]},
-  {player:"Jake Chiasson",   pos:"D",team:"Brandon Wheat Kings",       league:"whl", gp:36,ppg:0.22,pm:-2, nhle:0.03,szn:3,feeder:"whl: 3",         eligible:true, sample:false,pm_pg:-0.06,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
-  {player:"Ryan Mulholland", pos:"D",team:"Wilfrid Laurier Univ.",     league:"usports",gp:22,ppg:0.18,pm:1,nhle:0.02,szn:3,feeder:"usports: 3",   eligible:true, sample:false,pm_pg:0.05,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
-  {player:"Jordan Tourigny", pos:"D",team:"Baie-Comeau Drakkar",       league:"qmjhl",gp:40,ppg:0.18,pm:-9,nhle:0.02,szn:4,feeder:"qmjhl: 4",      eligible:true, sample:false,pm_pg:-0.23,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[55.6,5.6,33.3,0,5.6]},
-  {player:"Nathan Sauder",   pos:"D",team:"Univ. of Western Ontario",  league:"usports",gp:17,ppg:0.00,pm:0,nhle:0.00,szn:5,feeder:"ohl: 4, usports: 1",eligible:true,sample:false,pm_pg:0.00,
-   ppg_proj:"bottom_pair",ppg_p:[59.6,3.5,29.8,0,7.0],    pm_proj:"bottom_pair",pm_p:[59.3,0,33.3,0,7.4]},
-];
+let D = [];
 
-D.forEach(p => { p.model_diff = p.ppg_proj !== p.pm_proj; });
-P.forEach(p => { p.model_diff = p.ppg_proj !== p.pm_proj; });
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let MODEL = 'ppg';
@@ -857,30 +764,29 @@ function setPos(pos) {
 // ── FILTER + SORT ──────────────────────────────────────────────────────────
 function buildTeams() {
   const fl = document.getElementById('s-league').value;
-  const sel = document.getElementById('s-team');
-  const prev = sel.value;
+  const list = document.getElementById('team-list');
   const teams = [...new Set(
     curData().filter(p => !fl || p.league === fl).map(p => p.team)
   )].sort();
-  sel.innerHTML = '<option value="">All Teams</option>' +
-    teams.map(t => `<option value="${t}"${t===prev?' selected':''}>${t}</option>`).join('');
-  if (!teams.includes(prev)) sel.value = '';
+  list.innerHTML = teams.map(t => `<option value="${t}"></option>`).join('');
 }
 
 function getFiltered() {
   const q   = document.getElementById('s-search').value.toLowerCase();
   const fl  = document.getElementById('s-league').value;
-  const ft  = document.getElementById('s-team').value;
+  const ft  = document.getElementById('s-team').value.trim().toLowerCase();
   const fp  = document.getElementById('s-proj').value;
+  const fli = document.getElementById('s-likely').value;
   const ff  = document.getElementById('s-flags').value;
   const gpm = parseInt(document.getElementById('s-gp').value) || 0;
   const pm  = MODEL==='pm';
   return curData().filter(p => {
     if (q   && !p.player.toLowerCase().includes(q)) return false;
     if (fl  && p.league !== fl) return false;
-    if (ft  && p.team   !== ft) return false;
+    if (ft  && !p.team.toLowerCase().includes(ft)) return false;
     if (fp  && (pm ? p.pm_proj : p.ppg_proj) !== fp) return false;
-    if (ff==='eligible' && !p.eligible) return false;
+    if (fli==='yes' && !p.eligible) return false;
+    if (fli==='no'  &&  p.eligible) return false;
     if (ff==='sample'   && !p.sample)   return false;
     if (ff==='diff'     && !p.model_diff) return false;
     if (gpm > 0 && p.gp < gpm) return false;
@@ -919,7 +825,7 @@ function render() {
           <div class="pmeta">
             <span class="ptag">${p.pos}</span>
             <div class="flags">
-              ${p.eligible?`<span class="flag fe" title="ECHL Eligible — player appears to be in their final eligible feeder season.">✓ ECHL</span>`:''}
+              ${p.eligible?`<span class="flag fe" title="ECHL Likely — player appears to be in their final eligible feeder season.">✓ ECHL</span>`:''}
               ${p.sample?`<span class="flag fs" title="Sample Flag — current-season GP is below the 25%-of-season reliability floor.">⚠ Sample</span>`:''}
               ${diff?`<span class="flag fd" title="Model Disagrees — the PPG + Per-Game ± model gives a different projection. Worth a closer look.">⚡ Diff</span>`:''}
             </div>
@@ -953,7 +859,7 @@ function renderCards() {
   const lbl1 = POS==='F' ? '⭐ Projected 1st Liners (PPG)' : '⭐ Projected #1 D (PPG)';
   document.getElementById('cards').innerHTML = `
     <div class="card"><div class="card-val">${data.length}</div><div class="card-lbl">Total Players Scored</div></div>
-    <div class="card c-accent"><div class="card-val">${el}</div><div class="card-lbl">✓ ECHL Eligible</div></div>
+    <div class="card c-accent"><div class="card-val">${el}</div><div class="card-lbl">✓ ECHL Likely</div></div>
     <div class="card c-gold"><div class="card-val">${top1}</div><div class="card-lbl">${lbl1}</div></div>
     <div class="card c-purple"><div class="card-val">${dif}</div><div class="card-lbl">⚡ Model Disagreements</div></div>`;
 }
@@ -983,7 +889,9 @@ function sortBy(col) {
 function resetFilters() {
   document.getElementById('s-search').value = '';
   document.getElementById('s-league').value = '';
+  document.getElementById('s-team').value   = '';
   document.getElementById('s-proj').value   = '';
+  document.getElementById('s-likely').value = '';
   document.getElementById('s-flags').value  = '';
   document.getElementById('s-gp').value     = 0;
   document.getElementById('gp-val').textContent = '0';
@@ -992,8 +900,32 @@ function resetFilters() {
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-setPos('F');   // populates projection dropdown + teams, renders cards + table
-showPage('players');
+// ── DATA LOAD ────────────────────────────────────────────────────────────────
+const DATA_URL = 'data/players.json';
+function addModelDiff(a){ a.forEach(p => { p.model_diff = p.ppg_proj !== p.pm_proj; }); }
+async function loadData() {
+  try {
+    const resp = await fetch(`${DATA_URL}?t=${Date.now()}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const d = await resp.json();
+    P = d.forwards || [];
+    D = d.dmen || [];
+    addModelDiff(P); addModelDiff(D);
+    const u = document.getElementById('updated');
+    if (u && d.meta && d.meta.generated) {
+      const dt = new Date(d.meta.generated);
+      u.textContent = 'Updated ' + dt.toLocaleDateString('en-US',
+        {year:'numeric', month:'long', day:'numeric'});
+    }
+  } catch (e) {
+    const u = document.getElementById('updated');
+    if (u) u.textContent = 'Data failed to load';
+    console.error('Failed to load player data:', e);
+  }
+  setPos('F');   // populates projection dropdown + teams, renders cards + table
+  showPage('players');
+}
+loadData();
 </script>
 </body>
 </html>
