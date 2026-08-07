@@ -109,7 +109,20 @@ def _pro_experienced(careers: pd.DataFrame) -> set:
     roster at all = already turned pro. Pro is detected via EP leagueLevel
     (dynamic, catches pro leagues outside PRO_LEAGUES) + a slug set."""
     is_pro = careers["league"].isin(c.PRO_LEAGUES) | careers["league_level"].map(c.is_pro_level)
-    return set(careers.loc[is_pro, "player"])
+    return set(careers.loc[is_pro, "player"]) | _manual_excludes()
+
+
+def _manual_excludes() -> set:
+    """Names in data/pro_exclude.txt (one per line, '#' comments) are always
+    dropped. Safety net for the CSV fallback: a hand-downloaded feeder CSV may
+    contain ONLY feeder-league rows (no AHL/NHL/etc.), so the pro-filter can't
+    see that a player turned pro — list them here to exclude them anyway. Match
+    is exact against the cleaned player name shown in the app."""
+    f = c.DATA_DIR / "pro_exclude.txt"
+    if not f.exists():
+        return set()
+    return {ln.strip() for ln in f.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.lstrip().startswith("#")}
 
 
 def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
