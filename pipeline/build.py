@@ -135,7 +135,7 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
     if cur.empty:
         return cur
     cur = cur.sort_values("gp", ascending=False)
-    agg = cur.groupby("player", as_index=False).agg(
+    agg_kwargs = dict(
         position=("position", "first"),
         team=("team", "first"),          # team with most GP
         league=("league", "first"),      # league with most GP
@@ -143,6 +143,9 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
         tp=("tp", "sum"),
         pm=("+/-", "sum"),
     )
+    if "link" in cur.columns:            # EP profile URL (per-player, constant)
+        agg_kwargs["link"] = ("link", "first")
+    agg = cur.groupby("player", as_index=False).agg(**agg_kwargs)
     agg["ppg"] = (agg["tp"] / agg["gp"]).where(agg["gp"] > 0, 0).round(4)
     return agg
 

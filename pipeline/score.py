@@ -162,6 +162,8 @@ def score(current: pd.DataFrame, tables=None) -> dict:
             "eligible": szn >= c.ELIG_MIN.get(league, 4),
             "sample": gp < c.LEAGUE_GP_FLOOR.get(league, c.SCORING_GP_MIN),
         }
+        _ep = r.get("link")
+        base["ep"] = _ep if isinstance(_ep, str) and _ep else None
 
         if c.is_defense(r["position"]):
             base.update(_score_defense({**base}, tables))

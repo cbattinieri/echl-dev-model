@@ -118,6 +118,10 @@ td { padding:9px 12px; vertical-align:middle; }
 /* player cell */
 .pcell { display:flex; flex-direction:column; gap:3px; }
 .pname { font-weight:500; color:#e8f0ff; white-space:nowrap; }
+a.pname { text-decoration:none; transition:color .12s; }
+a.pname:hover { color:var(--accent); text-decoration:underline; text-underline-offset:2px; }
+.ep-ico { font-size:9px; color:var(--muted); vertical-align:super; margin-left:1px; }
+a.pname:hover .ep-ico { color:var(--accent); }
 .pmeta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .ptag  { background:rgba(255,255,255,.06); color:var(--dim); font-size:10px; padding:1px 5px; border-radius:2px; }
 .flags { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
@@ -158,6 +162,27 @@ td { padding:9px 12px; vertical-align:middle; }
 .pseg { height:100%; border-radius:1px; }
 .prow { display:flex; flex-direction:column; gap:3px; }
 .plbl { font-size:10px; color:var(--muted); }
+
+/* hoverable cells + floating projection card */
+td.hc-cell { cursor:help; }
+.hovercard { position:fixed; z-index:200; display:none; width:300px; background:var(--bg-card); border:1px solid var(--borderl); border-radius:8px; box-shadow:0 14px 40px rgba(0,0,0,.55); padding:13px 15px; pointer-events:none; }
+.hovercard.show { display:block; }
+.hc-hdr { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.hc-nm { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; letter-spacing:.03em; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hc-note { font-size:10px; color:var(--muted); letter-spacing:.02em; margin-bottom:10px; line-height:1.4; }
+.hc-body { display:flex; flex-direction:column; gap:8px; }
+.hc-row { display:grid; grid-template-columns:118px 1fr 40px; align-items:center; gap:9px; }
+.hc-lblbox { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.hc-lbl { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--dim); white-space:nowrap; line-height:1.1; }
+.hc-row.is-top .hc-lbl { color:var(--text); font-weight:600; }
+.hc-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.hc-rng { font-size:9.5px; color:var(--muted); padding-left:13px; letter-spacing:.02em; }
+.hc-track { height:9px; background:var(--bg); border:1px solid var(--border); border-radius:3px; overflow:hidden; }
+.hc-fill { height:100%; border-radius:2px; min-width:1px; }
+.hc-pct { font-size:11px; font-variant-numeric:tabular-nums; text-align:right; color:var(--dim); }
+.hc-row.is-top .hc-pct { color:var(--text); font-weight:600; }
+.hc-metric { margin-top:10px; padding-top:8px; border-top:1px solid var(--border); font-size:10px; color:var(--muted); line-height:1.5; }
+.hc-metric b { color:var(--dim); font-weight:600; }
 
 /* pm value */
 .pm-pos { color:#4ade80; }
@@ -464,6 +489,9 @@ tbody tr.sel-row { background:rgba(0,196,140,.10) !important; }
       <p>No players match your filters.</p>
     </div>
   </div>
+
+<!-- PROJECTION HOVER CARD (floating, appended near hovered cell) -->
+<div class="hovercard" id="hovercard"></div>
 
 <!-- COMPARE MODAL -->
 <div class="cmp-overlay" id="cmp-overlay" onclick="if(event.target===this)closeCompare()">
@@ -881,7 +909,9 @@ function render() {
       <td class="cb-col"><input type="checkbox" class="row-cb" data-key="${k.replace(/"/g,'&quot;')}" ${shortlist.has(k)?'checked':''} onclick="toggleSelect(this.dataset.key, event)"></td>
       <td>
         <div class="pcell">
-          <div class="pname">${p.player}</div>
+          ${p.ep
+            ? `<a class="pname" href="${p.ep}" target="_blank" rel="noopener noreferrer" title="EliteProspects profile ↗">${p.player}<span class="ep-ico">↗</span></a>`
+            : `<div class="pname">${p.player}</div>`}
           <div class="pmeta">
             <span class="ptag">${p.pos}</span>
             <div class="flags">
@@ -902,8 +932,8 @@ function render() {
       <td class="num">${p.ppg.toFixed(2)}</td>
       <td class="num"><span class="nhle-v">${p.nhle.toFixed(2)}</span></td>
       ${pm?`<td class="num"><span class="${pmClass(p.pm_pg)}" title="Per-game ±: ${p.pm_pg>0.15?'Positive':p.pm_pg<-0.15?'Negative':'Neutral'}">${pmSign(p.pm_pg)}</span></td>`:''}
-      <td><span class="pbadge p-${proj}">${labels[proj]||proj}</span></td>
-      <td>${probBar(probs)}</td>
+      <td class="hc-cell" data-key="${escAttr(k)}"><span class="pbadge p-${proj}">${labels[proj]||proj}</span></td>
+      <td class="hc-cell" data-key="${escAttr(k)}">${probBar(probs)}</td>
       <td><span class="fhist" title="${p.feeder} · ${p.szn} total feeder season${p.szn!==1?'s':''}">${p.feeder}</span></td>
     </tr>`;
   }).join('');
@@ -1075,6 +1105,82 @@ function resetFilters() {
   buildTeams();
   render();
 }
+
+// ── PROJECTION HOVER CARD ───────────────────────────────────────────────────
+// Forward buckets keyed to array order [1st, 2nd, bot6, checking, fringe];
+// D buckets to [bottom_pair, fringe, middle_pair, number_1, top_pair].
+const HC_RANGE_F = ['≥ 0.74 ECHL PPG','0.52–0.74 PPG','0.32–0.52 PPG','< 0.32 PPG','Replacement level'];
+const HC_RANGE_D = ['Depth / bottom pair','Replacement level','Middle pairing','Top pairing + PP','Top-4 minutes'];
+// Display order best → worst (D array isn't tier-ordered).
+const HC_ORDER_F = [0,1,2,3,4];
+const HC_ORDER_D = [3,4,2,0,1];
+
+function buildHoverCard(p){
+  const pm    = MODEL==='pm';
+  const dman  = isDman(p);
+  const probs = pm ? p.pm_p : p.ppg_p;
+  const proj  = pm ? p.pm_proj : p.ppg_proj;
+  const clrs  = dman ? PCOLORS_D : PCOLORS_F;
+  const lbls  = dman ? PLBLS_D   : PLBLS_F;
+  const labs  = dman ? PLABELS_D : PLABELS_F;
+  const rngs  = dman ? HC_RANGE_D : HC_RANGE_F;
+  const order = dman ? HC_ORDER_D : HC_ORDER_F;
+  const top   = Math.max(...probs), ti = probs.indexOf(top);
+  const rows = order.map(i=>{
+    const v = probs[i]||0;
+    return `<div class="hc-row ${i===ti?'is-top':''}">
+      <div class="hc-lblbox">
+        <div class="hc-lbl"><span class="hc-dot" style="background:${clrs[i]}"></span>${lbls[i]}</div>
+        <div class="hc-rng">${rngs[i]}</div>
+      </div>
+      <div class="hc-track"><div class="hc-fill" style="width:${v}%;background:${clrs[i]}"></div></div>
+      <div class="hc-pct">${v.toFixed(1)}%</div>
+    </div>`;
+  }).join('');
+  const metric = dman
+    ? '<b>Tiers</b> = projected first-year ECHL pairing role. Bars show the historical outcome mix for players at this NHLe level.'
+    : '<b>Ranges</b> = projected first-year ECHL points-per-game. Bars show the historical outcome mix for players at this NHLe level.';
+  return `<div class="hc-hdr"><span class="hc-nm">${p.player}</span><span class="pbadge p-${proj}">${labs[proj]||proj}</span></div>
+    <div class="hc-note">${pm?'PPG + Per-Game ± model':'PPG model'} · projected outcome distribution</div>
+    <div class="hc-body">${rows}</div>
+    <div class="hc-metric">${metric}</div>`;
+}
+
+(function(){
+  const hc = document.getElementById('hovercard');
+  const tbody = document.getElementById('tbody');
+  let curCell = null;
+  function hide(){ hc.classList.remove('show'); curCell = null; }
+  function position(cell){
+    const r = cell.getBoundingClientRect();
+    const cw = hc.offsetWidth, ch = hc.offsetHeight, m = 8;
+    let left = r.left;
+    let top  = r.bottom + m;
+    if (top + ch > window.innerHeight - m) top = r.top - ch - m;   // flip above
+    if (top < m) top = m;
+    if (left + cw > window.innerWidth - m) left = window.innerWidth - cw - m;
+    if (left < m) left = m;
+    hc.style.left = left + 'px';
+    hc.style.top  = top + 'px';
+  }
+  tbody.addEventListener('mouseover', e=>{
+    const cell = e.target.closest('.hc-cell');
+    if (!cell || cell === curCell) return;
+    const rec = findRec(cell.dataset.key);
+    if (!rec) { hide(); return; }
+    curCell = cell;
+    hc.innerHTML = buildHoverCard(rec);
+    hc.classList.add('show');
+    position(cell);
+  });
+  tbody.addEventListener('mouseout', e=>{
+    const cell = e.target.closest('.hc-cell');
+    if (!cell || cell !== curCell) return;
+    if (!e.relatedTarget || !cell.contains(e.relatedTarget)) hide();
+  });
+  // Detach on any scroll (card is fixed-position; keeping it pinned would drift).
+  window.addEventListener('scroll', hide, true);
+})();
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 // ── DATA LOAD ────────────────────────────────────────────────────────────────
