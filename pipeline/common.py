@@ -93,3 +93,15 @@ SNAPSHOT_COLS = [
 def is_defense(position) -> bool:
     """D if the position string contains 'D' (matches the v3 notebooks)."""
     return "D" in str(position or "").upper()
+
+
+def is_goalie(position) -> bool:
+    """True if any position token is 'G'.
+
+    Goalies are DROPPED from the population, not routed to a skater model. Both
+    scoring models are points-based (NHLe = factor x ppg), so a goalie scores
+    ppg 0.0, falls into the bottom NHLe bin and publishes as a Fringe forward --
+    a projection that means nothing. Note is_defense() only catches 'D', so
+    without this check every non-D position (goalies included) falls through to
+    the forward model."""
+    return any(t.strip().upper() == "G" for t in str(position or "").split("/"))

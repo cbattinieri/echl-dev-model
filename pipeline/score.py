@@ -141,6 +141,8 @@ def score(current: pd.DataFrame, tables=None) -> dict:
         gp = int(r["gp"])
         if gp < c.SCORING_GP_MIN or league not in c.LEAGUE_TO_NHLE:
             continue
+        if c.is_goalie(r["position"]):   # neither model applies to goalies
+            continue
         ppg = float(r["ppg"])
         pm_total = int(r["pm"])
         nhle = round(c.LEAGUE_TO_NHLE[league] * ppg, 2)

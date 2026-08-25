@@ -132,3 +132,9 @@ GP floors, eligibility thresholds, and the propensity tables live in
   pro league is dropped. Detection uses EP's `leagueLevel` (dynamic) plus
   `common.PRO_LEAGUES` (fallback for the CSV path). Count reported as
   `meta.excluded_pro`.
+- **Population (goalies):** goalies are dropped outright. Both models are
+  points-based (NHLe = factor x ppg), so a goalie scores ppg 0.0 and would
+  publish as a Fringe *forward* -- `common.is_defense()` only matches 'D', so
+  every non-D position otherwise falls through to the forward model. Filtered
+  in `build._current_players`, with a guard in `score.score`; count reported
+  as `meta.excluded_goalies`.

@@ -132,6 +132,7 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
     cur = careers[careers["season"] == season].copy()
     cur = cur[cur["league"].isin(c.FEEDER_LEAGUES)]
     cur = cur[~cur["player"].isin(pro)]
+    cur = cur[~cur["position"].map(c.is_goalie)]   # points-based models can't score G
     if cur.empty:
         return cur
     cur = cur.sort_values("gp", ascending=False)
@@ -165,6 +166,15 @@ def main():
     excluded_pro = cur_universe[cur_universe.isin(pro)].nunique()
     print(f"Excluded {excluded_pro} current feeder players who already played pro")
 
+    # Goalies dropped = players whose every surviving current-season row is a G
+    # row (a name with both G and skater rows keeps the skater rows).
+    cur_rows = careers[(careers["season"] == c.TARGET_SEASON)
+                       & careers["league"].isin(c.FEEDER_LEAGUES)
+                       & ~careers["player"].isin(pro)]
+    excluded_goalies = (cur_rows["player"].nunique()
+                        - cur_rows[~cur_rows["position"].map(c.is_goalie)]["player"].nunique())
+    print(f"Excluded {excluded_goalies} goalies (no points-based projection applies)")
+
     current = _current_players(careers, c.TARGET_SEASON)
     if current.empty:
         sys.exit(f"No {c.TARGET_SEASON} rows in snapshot for {c.FEEDER_LEAGUES}.")
@@ -180,7 +190,9 @@ def main():
             "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "season": c.TARGET_SEASON,
             "source": source,
-            "counts": {"forwards": len(f), "dmen": len(d), "excluded_pro": int(excluded_pro)},
+            "counts": {"forwards": len(f), "dmen": len(d),
+                       "excluded_pro": int(excluded_pro),
+                       "excluded_goalies": int(excluded_goalies)},
         },
         "forwards": f,
         "dmen": d,
