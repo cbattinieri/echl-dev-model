@@ -21,6 +21,17 @@
   --text:      #d8e0f0;
   --muted:     #5e6e8a;
   --dim:       #8898a8;
+  /* projection tier ramp — sequential blue, darkest = top tier */
+  --t1:  #14306e;   /* 1st Liner / Number One D */
+  --t2:  #1d4ed8;   /* 2nd Liner / Top Pair      */
+  --t3:  #3b82f6;   /* Bot 6 / Middle Pair       */
+  --t4:  #7cb8f5;   /* Checking / Bottom Pair    */
+  --t5:  #c5ddfa;   /* Fringe                    */
+  /* badge text: same hue family, lifted into a legible band on the dark bg */
+  --tb2: #5b93f2;
+  --tb3: #7cb0f5;
+  --tb4: #93a9c9;
+  --tb5: #8b9ab5;
   --c1:  #f59e0b;
   --c2:  #64748b;
   --cb:  #3b82f6;
@@ -144,18 +155,18 @@ a.pname:hover .ep-ico { color:var(--accent); }
 
 /* projection badge */
 .pbadge { display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:3px 8px; border-radius:4px; white-space:nowrap; }
-.p-1st_liner           { background:rgba(245,158,11,.18); color:var(--c1); border:1px solid rgba(245,158,11,.3); }
-.p-2nd_liner           { background:rgba(100,116,139,.25); color:#94a3b8;  border:1px solid rgba(100,116,139,.4); }
-.p-bottom_six_two_way  { background:rgba(59,130,246,.18);  color:#60a5fa;  border:1px solid rgba(59,130,246,.3); }
-.p-checking            { background:rgba(249,115,22,.18);  color:var(--cc); border:1px solid rgba(249,115,22,.3); }
-.p-fringe              { background:rgba(239,68,68,.14);   color:#f87171;  border:1px solid rgba(239,68,68,.25); }
+.p-1st_liner           { background:rgba(245,158,11,.18); color:var(--c1);  border:1px solid rgba(245,158,11,.3); }
+.p-2nd_liner           { background:rgba(29,78,216,.22);   color:var(--tb2); border:1px solid rgba(29,78,216,.42); }
+.p-bottom_six_two_way  { background:rgba(59,130,246,.18);  color:var(--tb3); border:1px solid rgba(59,130,246,.3); }
+.p-checking            { background:rgba(124,184,245,.13); color:var(--tb4); border:1px solid rgba(124,184,245,.26); }
+.p-fringe              { background:rgba(139,154,181,.12); color:var(--tb5); border:1px solid rgba(139,154,181,.24); }
 .p-na                  { background:rgba(255,255,255,.05); color:var(--muted); border:1px solid var(--border); }
 
 /* D projection badges */
-.p-number_1    { background:rgba(245,158,11,.18); color:var(--c1); border:1px solid rgba(245,158,11,.3); }
-.p-top_pair    { background:rgba(100,116,139,.25); color:#94a3b8;  border:1px solid rgba(100,116,139,.4); }
-.p-middle_pair { background:rgba(59,130,246,.18);  color:#60a5fa;  border:1px solid rgba(59,130,246,.3); }
-.p-bottom_pair { background:rgba(249,115,22,.18);  color:var(--cc); border:1px solid rgba(249,115,22,.3); }
+.p-number_1    { background:rgba(245,158,11,.18); color:var(--c1);  border:1px solid rgba(245,158,11,.3); }
+.p-top_pair    { background:rgba(29,78,216,.22);   color:var(--tb2); border:1px solid rgba(29,78,216,.42); }
+.p-middle_pair { background:rgba(59,130,246,.18);  color:var(--tb3); border:1px solid rgba(59,130,246,.3); }
+.p-bottom_pair { background:rgba(124,184,245,.13); color:var(--tb4); border:1px solid rgba(124,184,245,.26); }
 
 /* prob bar */
 .pbar { display:flex; height:8px; border-radius:4px; overflow:hidden; width:120px; gap:1px; }
@@ -450,11 +461,11 @@ tbody tr.sel-row { background:rgba(0,196,140,.10) !important; }
   <!-- legend -->
   <div class="legends">
     <div class="proj-legend" id="proj-legend">
-      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>1st Liner</div>
-      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>2nd Liner</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Bottom 6 / Two-Way</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Checking</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t1)"></div>1st Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t2)"></div>2nd Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t3)"></div>Bottom 6 / Two-Way</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t4)"></div>Checking</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t5)"></div>Fringe</div>
     </div>
     <div class="flag-legend">
       <div class="fi"><span class="flag fe">✓ ECHL</span> Final eligible season</div>
@@ -772,9 +783,9 @@ const PLABELS_D = {
   'middle_pair':'🔵 Middle Pair',
   'bottom_pair':'🟠 Bottom Pair','fringe':'Fringe','n/a':'N/A'
 };
-const PCOLORS_F = ['#f59e0b','#475569','#3b82f6','#f97316','#ef4444'];
+const PCOLORS_F = ['#14306e','#1d4ed8','#3b82f6','#7cb8f5','#c5ddfa'];
 const PLBLS_F   = ['1st Liner','2nd Liner','Bot 6/2-Way','Checking','Fringe'];
-const PCOLORS_D = ['#f97316','#ef4444','#3b82f6','#f59e0b','#475569'];
+const PCOLORS_D = ['#7cb8f5','#c5ddfa','#3b82f6','#14306e','#1d4ed8'];
 const PLBLS_D   = ['Bottom Pair','Fringe','Middle Pair','Number One D','Top Pair'];
 const LGMAP     = {ncaa:'NCAA',ohl:'OHL',whl:'WHL',qmjhl:'QMJHL',usports:'USports'};
 
@@ -823,18 +834,18 @@ function setPos(pos) {
   const leg = document.getElementById('proj-legend');
   if (pos === 'F') {
     leg.innerHTML = `
-      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>1st Liner</div>
-      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>2nd Liner</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Bottom 6 / Two-Way</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Checking</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>`;
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t1)"></div>1st Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t2)"></div>2nd Liner</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t3)"></div>Bottom 6 / Two-Way</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t4)"></div>Checking</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t5)"></div>Fringe</div>`;
   } else {
     leg.innerHTML = `
-      <div class="pleg"><div class="pleg-dot" style="background:var(--c1)"></div>Number One D</div>
-      <div class="pleg"><div class="pleg-dot" style="background:#475569"></div>Top Pair</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cb)"></div>Middle Pair</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cc)"></div>Bottom Pair</div>
-      <div class="pleg"><div class="pleg-dot" style="background:var(--cf)"></div>Fringe</div>`;
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t1)"></div>Number One D</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t2)"></div>Top Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t3)"></div>Middle Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t4)"></div>Bottom Pair</div>
+      <div class="pleg"><div class="pleg-dot" style="background:var(--t5)"></div>Fringe</div>`;
   }
   // Reset projection filter options
   const projOpts = pos==='F' ? PROJ_OPTS_F : PROJ_OPTS_D;
