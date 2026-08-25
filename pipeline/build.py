@@ -160,7 +160,10 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
     cur = cur[~cur["position"].map(c.is_goalie)]   # points-based models can't score G
     if cur.empty:
         return cur
-    cur = cur.sort_values("gp", ascending=False)
+    # mergesort is stable, so an equal-GP tie keeps snapshot order instead of
+    # being decided arbitrarily. Quicksort (the default) made the published
+    # team of an evenly-split traded player flip between identical runs.
+    cur = cur.sort_values("gp", ascending=False, kind="mergesort")
     agg_kwargs = dict(
         player=("player", "first"),
         position=("position", "first"),
