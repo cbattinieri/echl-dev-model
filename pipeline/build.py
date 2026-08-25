@@ -81,23 +81,42 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _player_id(careers: pd.DataFrame) -> pd.Series:
+    """Stable per-player key: the EliteProspects numeric id out of the profile
+    URL, falling back to the name if a CSV lacks the `link` column.
+
+    Names are NOT unique. The snapshot carries 11 names shared by two or three
+    different real players (e.g. three separate OHL "Brady Smith"s), and several
+    of those collide across positions. Grouping by name summed their GP/TP/+-
+    into one fictional player and let whichever row sorted first decide the
+    published position and team. Keying on the EP id keeps them apart."""
+    if "link" not in careers.columns:
+        print("  WARNING: snapshot has no `link` column — falling back to "
+              "name-keying, which merges players who share a name")
+        return "name:" + careers["player"].astype(str)
+    pid = careers["link"].astype(str).str.extract(r"/player/(\d+)", expand=False)
+    return pid.fillna("name:" + careers["player"].astype(str))
+
+
 def _feeder_seasons(careers: pd.DataFrame) -> pd.DataFrame:
-    """Per-player total feeder seasons (szn_no) + 'lg: n, lg: n' summary."""
+    """Per-player total feeder seasons (szn_no) + 'lg: n, lg: n' summary.
+
+    Keyed on pid, not name — see _player_id()."""
     per_lg = (
-        careers.groupby(["player", "league"])["season"].nunique().reset_index()
+        careers.groupby(["pid", "league"])["season"].nunique().reset_index()
         .rename(columns={"season": "n"})
     )
     per_lg["league_szn"] = per_lg["league"] + ": " + per_lg["n"].astype(str)
     summary = (
-        per_lg.sort_values(["player", "n", "league"], ascending=[True, False, True])
-        .groupby("player")["league_szn"].apply(lambda x: ", ".join(x))
+        per_lg.sort_values(["pid", "n", "league"], ascending=[True, False, True])
+        .groupby("pid")["league_szn"].apply(lambda x: ", ".join(x))
         .reset_index().rename(columns={"league_szn": "feeder_szns"})
     )
     total = (
-        careers.groupby("player")["season"].nunique().reset_index()
+        careers.groupby("pid")["season"].nunique().reset_index()
         .rename(columns={"season": "szn_no"})
     )
-    return summary.merge(total, on="player")
+    return summary.merge(total, on="pid")
 
 
 def _pro_experienced(careers: pd.DataFrame) -> set:
@@ -109,7 +128,13 @@ def _pro_experienced(careers: pd.DataFrame) -> set:
     roster at all = already turned pro. Pro is detected via EP leagueLevel
     (dynamic, catches pro leagues outside PRO_LEAGUES) + a slug set."""
     is_pro = careers["league"].isin(c.PRO_LEAGUES) | careers["league_level"].map(c.is_pro_level)
-    return set(careers.loc[is_pro, "player"]) | _manual_excludes()
+    pids = set(careers.loc[is_pro, "pid"])
+    # pro_exclude.txt is name-keyed (it's a hand-maintained safety net), so a
+    # listed name drops every pid sharing it — deliberately conservative.
+    manual = _manual_excludes()
+    if manual:
+        pids |= set(careers.loc[careers["player"].isin(manual), "pid"])
+    return pids
 
 
 def _manual_excludes() -> set:
@@ -131,12 +156,13 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
     pro = _pro_experienced(careers)
     cur = careers[careers["season"] == season].copy()
     cur = cur[cur["league"].isin(c.FEEDER_LEAGUES)]
-    cur = cur[~cur["player"].isin(pro)]
+    cur = cur[~cur["pid"].isin(pro)]
     cur = cur[~cur["position"].map(c.is_goalie)]   # points-based models can't score G
     if cur.empty:
         return cur
     cur = cur.sort_values("gp", ascending=False)
     agg_kwargs = dict(
+        player=("player", "first"),
         position=("position", "first"),
         team=("team", "first"),          # team with most GP
         league=("league", "first"),      # league with most GP
@@ -146,7 +172,7 @@ def _current_players(careers: pd.DataFrame, season: str) -> pd.DataFrame:
     )
     if "link" in cur.columns:            # EP profile URL (per-player, constant)
         agg_kwargs["link"] = ("link", "first")
-    agg = cur.groupby("player", as_index=False).agg(**agg_kwargs)
+    agg = cur.groupby("pid", as_index=False).agg(**agg_kwargs)
     agg["ppg"] = (agg["tp"] / agg["gp"]).where(agg["gp"] > 0, 0).round(4)
     return agg
 
@@ -157,12 +183,17 @@ def main():
         _write_placeholder()
         return
     careers = _clean(careers)
+    careers["pid"] = _player_id(careers)
+    dupe_names = (careers.groupby("player")["pid"].nunique() > 1).sum()
     print(f"Snapshot: {len(careers):,} feeder rows, "
-          f"{careers['player'].nunique():,} players (source: {source})")
+          f"{careers['pid'].nunique():,} players (source: {source})")
+    if dupe_names:
+        print(f"  {dupe_names} name(s) shared by more than one real player — "
+              f"kept apart by EP id")
 
     pro = _pro_experienced(careers)
     cur_universe = careers[(careers["season"] == c.TARGET_SEASON)
-                           & careers["league"].isin(c.FEEDER_LEAGUES)]["player"]
+                           & careers["league"].isin(c.FEEDER_LEAGUES)]["pid"]
     excluded_pro = cur_universe[cur_universe.isin(pro)].nunique()
     print(f"Excluded {excluded_pro} current feeder players who already played pro")
 
@@ -170,15 +201,15 @@ def main():
     # row (a name with both G and skater rows keeps the skater rows).
     cur_rows = careers[(careers["season"] == c.TARGET_SEASON)
                        & careers["league"].isin(c.FEEDER_LEAGUES)
-                       & ~careers["player"].isin(pro)]
-    excluded_goalies = (cur_rows["player"].nunique()
-                        - cur_rows[~cur_rows["position"].map(c.is_goalie)]["player"].nunique())
+                       & ~careers["pid"].isin(pro)]
+    excluded_goalies = (cur_rows["pid"].nunique()
+                        - cur_rows[~cur_rows["position"].map(c.is_goalie)]["pid"].nunique())
     print(f"Excluded {excluded_goalies} goalies (no points-based projection applies)")
 
     current = _current_players(careers, c.TARGET_SEASON)
     if current.empty:
         sys.exit(f"No {c.TARGET_SEASON} rows in snapshot for {c.FEEDER_LEAGUES}.")
-    current = current.merge(_feeder_seasons(careers), on="player", how="left")
+    current = current.merge(_feeder_seasons(careers), on="pid", how="left")
     current["szn_no"] = current["szn_no"].fillna(1).astype(int)
 
     result = scoring.score(current)
